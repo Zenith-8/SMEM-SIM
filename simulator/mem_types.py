@@ -18,13 +18,13 @@ from common.custom_enums_multi import Op
 
 '''FROM DCACHE'''
 # --- Cache Configuration ---
-NUM_BANKS = 2           # Number of banks
+NUM_BANKS = 32          # Number of banks
 NUM_SETS_PER_BANK = 16  # Number of sets per bank
 NUM_WAYS = 8            # Number of ways in each set
 BLOCK_SIZE_WORDS = 32   # Number of words in each block
 WORD_SIZE_BYTES = 4     # Size of each word in BYTE
-CACHE_SIZE = 32768      # Cache size [Bytes]
-UUID_SIZE = 8           # From [UUID_SIZE-1:0] in lockup_free_cache.sv
+CACHE_SIZE = NUM_BANKS * NUM_SETS_PER_BANK * NUM_WAYS * BLOCK_SIZE_WORDS * WORD_SIZE_BYTES
+UUID_SIZE = 16          # Wider UUID space keeps per-bank miss IDs unique at larger bank counts
 
 # Address bit lengths
 BYTE_OFF_BIT_LEN = (WORD_SIZE_BYTES - 1).bit_length()     # 4 - 1 = 3 -> 2 bits representation

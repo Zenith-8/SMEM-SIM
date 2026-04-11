@@ -1,0 +1,101 @@
+SMEM vs DCache Thread Scaling Benchmark
+=======================================
+
+Configuration
+-------------
+- Threads swept from 1 to 32
+- Synthetic miss latency used in this benchmark: 12 cycles
+- Balanced runs spread requests across banks as evenly as possible
+- Conflict runs force requests onto one bank
+- DCache has 32 banks; SMEM has 32 banks
+
+Mixed Hit/Miss
+--------------
+Each thread mixes hot read/write hits with two cold fetches and later reuses so every scenario includes both hits and misses.
+
+32-thread summary
+-----------------
+- Balanced: DCache = 359 cycles, SMEM = 270 cycles
+- Same-bank conflict: DCache = 1316 cycles, SMEM = 340 cycles
+
+Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
+-------------------------------------------------
+  1 |      72 |       30 |      76 |        33
+  2 |      81 |       36 |     116 |        42
+  3 |      90 |       42 |     156 |        51
+  4 |      99 |       48 |     196 |        60
+  5 |     108 |       54 |     236 |        70
+  6 |     117 |       60 |     276 |        79
+  7 |     126 |       68 |     316 |        89
+  8 |     135 |       78 |     356 |       100
+  9 |     144 |       88 |     396 |       110
+ 10 |     153 |       96 |     436 |       120
+ 11 |     162 |      104 |     476 |       130
+ 12 |     171 |      112 |     516 |       140
+ 13 |     180 |      118 |     556 |       150
+ 14 |     189 |      126 |     596 |       160
+ 15 |     198 |      134 |     636 |       170
+ 16 |     207 |      142 |     676 |       180
+ 17 |     216 |      152 |     716 |       190
+ 18 |     225 |      160 |     756 |       200
+ 19 |     234 |      168 |     796 |       210
+ 20 |     243 |      176 |     836 |       220
+ 21 |     252 |      182 |     876 |       230
+ 22 |     261 |      190 |     916 |       240
+ 23 |     270 |      198 |     956 |       250
+ 24 |     279 |      206 |     996 |       260
+ 25 |     288 |      216 |    1036 |       270
+ 26 |     297 |      224 |    1076 |       280
+ 27 |     306 |      232 |    1116 |       290
+ 28 |     316 |      240 |    1156 |       300
+ 29 |     326 |      246 |    1196 |       310
+ 30 |     337 |      254 |    1236 |       320
+ 31 |     348 |      262 |    1276 |       330
+ 32 |     359 |      270 |    1316 |       340
+
+SAXPY-Like Stream
+-----------------
+Approximate SAXPY memory behavior over two elements per thread: fetch x[i] and y[i], update y[i], then read back y[i].
+
+32-thread summary
+-----------------
+- Balanced: DCache = 772 cycles, SMEM = 409 cycles
+- Same-bank conflict: DCache = 2592 cycles, SMEM = 500 cycles
+
+Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
+-------------------------------------------------
+  1 |      84 |       44 |     112 |        44
+  2 |     104 |       53 |     192 |        56
+  3 |     124 |       62 |     272 |        68
+  4 |     144 |       71 |     352 |        80
+  5 |     164 |       81 |     432 |        92
+  6 |     184 |       90 |     512 |       104
+  7 |     204 |      111 |     592 |       128
+  8 |     224 |      120 |     672 |       140
+  9 |     244 |      128 |     752 |       152
+ 10 |     264 |      137 |     832 |       164
+ 11 |     284 |      146 |     912 |       176
+ 12 |     304 |      155 |     992 |       188
+ 13 |     324 |      189 |    1072 |       224
+ 14 |     344 |      198 |    1152 |       236
+ 15 |     364 |      207 |    1232 |       248
+ 16 |     388 |      216 |    1312 |       260
+ 17 |     412 |      224 |    1392 |       272
+ 18 |     436 |      233 |    1472 |       284
+ 19 |     460 |      254 |    1552 |       308
+ 20 |     484 |      263 |    1632 |       320
+ 21 |     508 |      273 |    1712 |       332
+ 22 |     532 |      282 |    1792 |       344
+ 23 |     556 |      292 |    1872 |       356
+ 24 |     580 |      301 |    1952 |       368
+ 25 |     604 |      333 |    2032 |       404
+ 26 |     628 |      342 |    2112 |       416
+ 27 |     652 |      351 |    2192 |       428
+ 28 |     676 |      360 |    2272 |       440
+ 29 |     700 |      370 |    2352 |       452
+ 30 |     724 |      379 |    2432 |       464
+ 31 |     748 |      400 |    2512 |       488
+ 32 |     772 |      409 |    2592 |       500
+
+CSV: thread_scaling_benchmark.csv
+Plot: results.jpg
