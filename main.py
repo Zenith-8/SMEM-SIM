@@ -8,7 +8,10 @@ import re
 from typing import Any, Deque, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import sys
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    import tomli as tomllib
 
 
 class TxnType(str, Enum):
