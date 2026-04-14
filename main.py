@@ -12,6 +12,9 @@ import tomllib
 
 
 class TxnType(str, Enum):
+    """
+    Enumeration of supported shared memory transaction types.
+    """
     SH_LD = "sh.ld"
     SH_ST = "sh.st"
     ASYNC_LD_DRAM_TO_SRAM = "async.ld.dram2sram"
@@ -19,6 +22,21 @@ class TxnType(str, Enum):
 
     @classmethod
     def from_user_value(cls, raw_value: str) -> "TxnType":
+        """
+        Parse a user-provided string into a TxnType enum.
+        
+        Normalizes the input by removing non-alphanumeric characters and converting to lowercase.
+        Maps common aliases to their corresponding TxnType.
+        
+        Args:
+            raw_value: The raw string input representing the transaction type.
+            
+        Returns:
+            The corresponding TxnType enum value.
+            
+        Raises:
+            ValueError: If the raw_value does not match any known aliases.
+        """
         key = re.sub(r"[^a-z0-9]+", "", raw_value.lower())
         aliases = {
             "shld": cls.SH_LD,
@@ -39,6 +57,9 @@ class TxnType(str, Enum):
 
 @dataclass
 class Transaction:
+    """
+    Represents a single memory transaction request.
+    """
     txn_type: TxnType
     dram_addr: Optional[int] = None
     shmem_addr: Optional[int] = None
@@ -48,6 +69,20 @@ class Transaction:
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "Transaction":
+        """
+        Construct a Transaction instance from a dictionary payload.
+        
+        Extracts and normalizes transaction fields, handling fallback keys (e.g., type vs txn_type).
+        
+        Args:
+            payload: Dictionary containing transaction parameters.
+            
+        Returns:
+            A new Transaction instance.
+            
+        Raises:
+            ValueError: If the transaction type is missing.
+        """
         raw_txn_type = payload.get("type", payload.get("txn_type"))
         if raw_txn_type is None:
             raise ValueError("Transaction is missing 'type'/'txn_type'.")
@@ -73,6 +108,9 @@ class Transaction:
 
 @dataclass
 class Completion:
+    """
+    Represents the completion state of a memory transaction.
+    """
     txn_id: int
     txn_type: str
     status: str
@@ -93,6 +131,9 @@ DEFAULT_SMEM_CONFIG_PATH = Path(".config")
 
 @dataclass
 class SmemSimulatorConfig:
+    """
+    Configuration parameters for the shared memory simulator.
+    """
     num_banks: int = 32
     word_bytes: int = 4
     dram_latency_cycles: int = 1
@@ -102,6 +143,20 @@ class SmemSimulatorConfig:
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "SmemSimulatorConfig":
+        """
+        Construct a SmemSimulatorConfig instance from a dictionary payload.
+        
+        Normalizes thread block offsets into a standard dictionary format if provided.
+        
+        Args:
+            payload: Dictionary containing configuration parameters.
+            
+        Returns:
+            A new SmemSimulatorConfig instance.
+            
+        Raises:
+            TypeError: If the payload is not a dict, or if thread_block_offsets is of an invalid type.
+        """
         if not isinstance(payload, dict):
             raise TypeError("SMEM config payload must be a dict.")
 
@@ -134,6 +189,15 @@ class SmemSimulatorConfig:
     def from_file(
         cls, config_path: Union[str, Path] = DEFAULT_SMEM_CONFIG_PATH
     ) -> "SmemSimulatorConfig":
+        """
+        Load a SmemSimulatorConfig from a TOML configuration file.
+        
+        Args:
+            config_path: Path to the TOML configuration file.
+            
+        Returns:
+            A SmemSimulatorConfig instance populated with values from the file, or defaults if the file does not exist.
+        """
         path = Path(config_path)
         if not path.exists():
             return cls()
@@ -143,6 +207,12 @@ class SmemSimulatorConfig:
         return cls.from_dict(smem_section)
 
     def to_sim_kwargs(self) -> Dict[str, Any]:
+        """
+        Convert the configuration into a dictionary of keyword arguments suitable for the simulator.
+        
+        Returns:
+            Dictionary of simulator initialization arguments.
+        """
         return {
             "num_banks": int(self.num_banks),
             "word_bytes": int(self.word_bytes),
@@ -156,6 +226,15 @@ class SmemSimulatorConfig:
 def load_smem_config(
     config_path: Union[str, Path] = DEFAULT_SMEM_CONFIG_PATH,
 ) -> SmemSimulatorConfig:
+    """
+    Helper function to load the shared memory simulator configuration from a file.
+    
+    Args:
+        config_path: Path to the configuration file.
+        
+    Returns:
+        The loaded SmemSimulatorConfig.
+    """
     return SmemSimulatorConfig.from_file(config_path)
 
 
@@ -167,6 +246,9 @@ except Exception:
 
 @dataclass
 class _CompatDMemResponse:
+    """
+    A compatibility response object matching the expected interface of the simulator.
+    """
     type: str
     req: Any = None
     address: Optional[int] = None
@@ -211,6 +293,18 @@ class ShmemFunctionalSimulator:
         num_threads: int = 1,
         thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
     ) -> None:
+        """
+        Initialize the shared memory functional simulator.
+        
+        Args:
+            dram_init: Initial state of the DRAM.
+            num_banks: Number of memory banks.
+            word_bytes: Number of bytes per word.
+            dram_latency_cycles: Latency of DRAM accesses in cycles.
+            arbiter_issue_width: Number of requests the arbiter can issue per cycle.
+            num_threads: Total number of threads.
+            thread_block_offsets: Offsets for each thread block.
+        """
         if num_banks <= 0:
             raise ValueError("num_banks must be > 0.")
         if word_bytes <= 0:
@@ -253,6 +347,17 @@ class ShmemFunctionalSimulator:
         self.completions: List[Completion] = []
 
     def issue(self, transaction: Transaction) -> int:
+        """
+        Issue a new transaction to the simulator.
+        
+        Validates the transaction and adds it to the input queue with a unique transaction ID.
+        
+        Args:
+            transaction: The transaction to issue.
+            
+        Returns:
+            The unique transaction ID assigned to this request.
+        """
         self._validate_transaction(transaction)
         thread_id = int(transaction.thread_id)
         effective_offset = self._effective_thread_block_offset(transaction)
@@ -272,6 +377,15 @@ class ShmemFunctionalSimulator:
     def run(
         self, transactions: Iterable[Transaction | Dict[str, Any]]
     ) -> Dict[str, Any]:
+        """
+        Run the simulator for a batch of transactions until completion.
+        
+        Args:
+            transactions: An iterable of transactions (or dict payloads) to process.
+            
+        Returns:
+            A snapshot of the simulator state after all transactions have completed.
+        """
         for raw in transactions:
             txn = raw if isinstance(raw, Transaction) else Transaction.from_dict(raw)
             self.issue(txn)
@@ -282,6 +396,15 @@ class ShmemFunctionalSimulator:
         return self.snapshot()
 
     def run_one(self, transaction: Transaction | Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run a single transaction through the simulator until it completes.
+        
+        Args:
+            transaction: The transaction (or dict payload) to process.
+            
+        Returns:
+            The completion record for the transaction as a dictionary.
+        """
         start_idx = len(self.completions)
         txn = (
             transaction
@@ -294,6 +417,11 @@ class ShmemFunctionalSimulator:
         return asdict(self.completions[-1])
 
     def step(self) -> None:
+        """
+        Advance the simulator by a single clock cycle.
+        
+        Executes all sub-components: DRAM events, SMEM arbiter, read/write controllers, and AXI ports.
+        """
         arbiter_banks_issued_this_cycle: Set[int] = set()
         banks_used_by_controllers_this_cycle: Set[int] = set()
 
@@ -306,6 +434,12 @@ class ShmemFunctionalSimulator:
         self.cycle_count = self.cycle
 
     def snapshot(self) -> Dict[str, Any]:
+        """
+        Capture the current state of the simulator.
+        
+        Returns:
+            A dictionary containing cycle counts, memory states, and completion records.
+        """
         return {
             "cycle": self.cycle,
             "cycle_count": self.cycle_count,
@@ -316,9 +450,24 @@ class ShmemFunctionalSimulator:
         }
 
     def get_cycle_count(self) -> int:
+        """
+        Get the current cycle count of the simulator.
+        
+        Returns:
+            The total number of cycles executed.
+        """
         return int(self.cycle_count)
 
     def _run_shared_memory_arbiter(self, banks_issued_this_cycle: Set[int]) -> None:
+        """
+        Execute the shared memory arbiter logic for the current cycle.
+        
+        Routes transactions from the input queue to the appropriate read or write queues,
+        respecting the arbiter issue width and avoiding bank conflicts.
+        
+        Args:
+            banks_issued_this_cycle: Set of bank indices already issued to in this cycle.
+        """
         if not self.input_queue:
             return
 
@@ -350,6 +499,14 @@ class ShmemFunctionalSimulator:
                 )
 
     def _run_smem_read_controller(self, banks_used_this_cycle: Set[int]) -> None:
+        """
+        Execute the SMEM read controller logic for the current cycle.
+        
+        Processes read requests and async store requests from the read queue.
+        
+        Args:
+            banks_used_this_cycle: Set of bank indices already accessed in this cycle.
+        """
         if not self.smem_read_queue:
             return
 
@@ -370,6 +527,7 @@ class ShmemFunctionalSimulator:
         banks_used_this_cycle.add(bank)
 
         if txn.txn_type == TxnType.SH_LD:
+            # Retrieve the value from the specific bank and slot, defaulting to 0 if uninitialized
             value = self.banks[bank].get(bank_slot, 0)
             tagged["trace"].append(
                 f"cycle {self.cycle}: SMEM Read Controller read bank {bank}, slot {bank_slot}"
@@ -382,6 +540,7 @@ class ShmemFunctionalSimulator:
             return
 
         if txn.txn_type == TxnType.ASYNC_ST_SMEM_TO_DRAM:
+            # Read the value from SMEM and forward it to the memory write queue for DRAM storage
             value = self.banks[bank].get(bank_slot, 0)
             self.memory_write_queue.append((tagged, txn.dram_addr, value))
             tagged["trace"].append(
@@ -392,6 +551,14 @@ class ShmemFunctionalSimulator:
         raise RuntimeError(f"Unexpected read-controller transaction: {txn.txn_type}")
 
     def _run_smem_write_controller(self, banks_used_this_cycle: Set[int]) -> None:
+        """
+        Execute the SMEM write controller logic for the current cycle.
+        
+        Processes memory read responses (from DRAM) and standard store requests.
+        
+        Args:
+            banks_used_this_cycle: Set of bank indices already accessed in this cycle.
+        """
         if self.memory_read_queue:
             tagged, value = self.memory_read_queue[0]
             txn: Transaction = tagged["txn"]
@@ -425,6 +592,7 @@ class ShmemFunctionalSimulator:
         absolute = self._absolute_smem_addr(txn)
 
         if txn.txn_type == TxnType.SH_ST:
+            # Mask the write data to ensure it fits within the configured word size
             value = int(txn.write_data) & self.word_mask
             bank, bank_slot = self._address_crossbar(
                 absolute, self._effective_thread_block_offset(txn)
@@ -449,6 +617,7 @@ class ShmemFunctionalSimulator:
 
         if txn.txn_type == TxnType.ASYNC_LD_DRAM_TO_SRAM:
             self.smem_write_queue.popleft()
+            # Simulate an AXI read by fetching data from DRAM and scheduling its arrival based on latency
             dram_data = int(self.dram.get(txn.dram_addr, 0)) & self.word_mask
             ready = self.cycle + self.dram_latency_cycles
             self.pending_dram_reads.append((ready, tagged, dram_data))
@@ -461,6 +630,11 @@ class ShmemFunctionalSimulator:
         raise RuntimeError(f"Unexpected write-controller transaction: {txn.txn_type}")
 
     def _run_axi_write_port(self) -> None:
+        """
+        Execute the AXI write port logic for the current cycle.
+        
+        Issues pending memory writes to DRAM with the configured latency.
+        """
         if not self.memory_write_queue:
             return
 
@@ -472,6 +646,9 @@ class ShmemFunctionalSimulator:
         )
 
     def _service_dram_events(self) -> None:
+        """
+        Service pending DRAM read and write events that have completed their latency period.
+        """
         next_pending_reads: List[Tuple[int, Dict[str, Any], int]] = []
         for ready_cycle, tagged, value in self.pending_dram_reads:
             if ready_cycle <= self.cycle:
@@ -496,15 +673,40 @@ class ShmemFunctionalSimulator:
         self.pending_dram_writes = next_pending_writes
 
     def _xor_map(self, absolute_smem_addr: int, thread_block_offset: int) -> int:
+        """
+        Compute the XOR-mapped word address to reduce bank conflicts.
+        
+        Args:
+            absolute_smem_addr: The absolute shared memory address.
+            thread_block_offset: The offset for the current thread block.
+            
+        Returns:
+            The XOR-mapped word address.
+        """
+        # Convert byte addresses to word addresses for banking logic
         word_addr = absolute_smem_addr // self.word_bytes
         offset_words = thread_block_offset // self.word_bytes
+        # XOR the word address with the offset to distribute accesses across banks and minimize conflicts
         return word_addr ^ offset_words
 
     def _address_crossbar(
         self, absolute_smem_addr: int, thread_block_offset: int
     ) -> Tuple[int, int]:
+        """
+        Route an address through the crossbar to determine its bank and slot.
+        
+        Args:
+            absolute_smem_addr: The absolute shared memory address.
+            thread_block_offset: The offset for the current thread block.
+            
+        Returns:
+            A tuple of (bank_index, bank_slot).
+        """
+        # Calculate the absolute word index in the memory space
         absolute_word = absolute_smem_addr // self.word_bytes
+        # Apply XOR mapping to determine the effective word for bank selection
         mapped_word = self._xor_map(absolute_smem_addr, thread_block_offset)
+        # The bank is determined by taking the modulo of the mapped word
         bank = mapped_word % self.num_banks
         # Preserve uniqueness in storage location across thread offsets:
         # XOR remaps bank selection, while slot still tracks absolute address space.
@@ -512,6 +714,15 @@ class ShmemFunctionalSimulator:
         return bank, bank_slot
 
     def _bank_for_transaction(self, txn: Transaction) -> int:
+        """
+        Determine the target bank for a given transaction.
+        
+        Args:
+            txn: The transaction to evaluate.
+            
+        Returns:
+            The index of the target bank.
+        """
         absolute = self._absolute_smem_addr(txn)
         bank, _ = self._address_crossbar(absolute, self._effective_thread_block_offset(txn))
         return bank
@@ -519,6 +730,14 @@ class ShmemFunctionalSimulator:
     def _complete(
         self, tagged: Dict[str, Any], *, read_data: Optional[int] = None, note: str = ""
     ) -> None:
+        """
+        Mark a transaction as complete and record its completion state.
+        
+        Args:
+            tagged: The tagged transaction dictionary.
+            read_data: Optional data read during the transaction.
+            note: Optional note to attach to the completion record.
+        """
         txn: Transaction = tagged["txn"]
         effective_offset = self._effective_thread_block_offset(txn)
         completion = Completion(
@@ -539,9 +758,30 @@ class ShmemFunctionalSimulator:
         self.completions.append(completion)
 
     def _absolute_smem_addr(self, txn: Transaction) -> int:
+        """
+        Calculate the absolute shared memory address for a transaction.
+        
+        Args:
+            txn: The transaction.
+            
+        Returns:
+            The absolute memory address including thread block offsets.
+        """
         return int(txn.shmem_addr) + self._effective_thread_block_offset(txn)
 
     def _effective_thread_block_offset(self, txn: Transaction) -> int:
+        """
+        Determine the effective thread block offset for a transaction.
+        
+        Args:
+            txn: The transaction.
+            
+        Returns:
+            The effective offset value.
+            
+        Raises:
+            ValueError: If the thread ID is out of range.
+        """
         if txn.thread_block_offset is not None:
             return int(txn.thread_block_offset)
         thread_id = int(txn.thread_id)
@@ -552,6 +792,12 @@ class ShmemFunctionalSimulator:
         return self.thread_block_offsets[thread_id]
 
     def _has_pending_work(self) -> bool:
+        """
+        Check if there is any pending work remaining in the simulator queues.
+        
+        Returns:
+            True if there is pending work, False otherwise.
+        """
         return any(
             (
                 self.input_queue,
@@ -565,6 +811,15 @@ class ShmemFunctionalSimulator:
         )
 
     def _validate_transaction(self, txn: Transaction) -> None:
+        """
+        Validate the parameters of a transaction before issuing it.
+        
+        Args:
+            txn: The transaction to validate.
+            
+        Raises:
+            ValueError: If any transaction parameters are invalid or missing.
+        """
         thread_id = int(txn.thread_id)
         if thread_id < 0 or thread_id >= self.num_threads:
             raise ValueError(
@@ -574,6 +829,7 @@ class ShmemFunctionalSimulator:
         if txn.thread_block_offset is not None:
             int(txn.thread_block_offset)
 
+        # Ensure that all transaction types that interact with shared memory have a valid shmem_addr
         if txn.txn_type in (
             TxnType.SH_LD,
             TxnType.SH_ST,
@@ -582,9 +838,11 @@ class ShmemFunctionalSimulator:
         ) and txn.shmem_addr is None:
             raise ValueError(f"{txn.txn_type.value} requires shmem_addr.")
 
+        # Store operations must provide the data to be written
         if txn.txn_type == TxnType.SH_ST and txn.write_data is None:
             raise ValueError("sh.st requires write_data.")
 
+        # Ensure that all asynchronous transactions that interact with DRAM have a valid dram_addr
         if txn.txn_type in (
             TxnType.ASYNC_LD_DRAM_TO_SRAM,
             TxnType.ASYNC_ST_SMEM_TO_DRAM,
@@ -592,11 +850,26 @@ class ShmemFunctionalSimulator:
             raise ValueError(f"{txn.txn_type.value} requires dram_addr.")
 
     @staticmethod
+    @staticmethod
     def _normalize_thread_offsets(
         *,
         num_threads: int,
         thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]],
     ) -> Dict[int, int]:
+        """
+        Normalize thread block offsets into a consistent dictionary format.
+        
+        Args:
+            num_threads: The total number of threads.
+            thread_block_offsets: The raw offsets provided by the user.
+            
+        Returns:
+            A dictionary mapping thread IDs to their offsets.
+            
+        Raises:
+            ValueError: If offsets are out of range or mismatched.
+            TypeError: If the offsets are of an invalid type.
+        """
         offsets: Dict[int, int] = {tid: 0 for tid in range(num_threads)}
         if thread_block_offsets is None:
             return offsets
@@ -635,6 +908,21 @@ def _resolve_simulator_kwargs(
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
 ) -> Dict[str, Any]:
+    """
+    Resolve simulator initialization arguments by combining config file defaults with explicit overrides.
+    
+    Args:
+        config_path: Path to the configuration file.
+        num_banks: Number of memory banks.
+        word_bytes: Number of bytes per word.
+        dram_latency_cycles: Latency of DRAM accesses in cycles.
+        arbiter_issue_width: Number of requests the arbiter can issue per cycle.
+        num_threads: Total number of threads.
+        thread_block_offsets: Offsets for each thread block.
+        
+    Returns:
+        A dictionary of resolved keyword arguments.
+    """
     cfg = load_smem_config(config_path)
     resolved = cfg.to_sim_kwargs()
     overrides = {
@@ -655,6 +943,18 @@ def _expand_thread_offsets_to_num_threads(
     offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]],
     num_threads: int,
 ) -> Optional[Dict[int, int] | List[int] | Tuple[int, ...]]:
+    """
+    Expand the provided thread offsets to match the specified number of threads.
+    
+    Pads missing offsets with zero.
+    
+    Args:
+        offsets: The initial thread offsets.
+        num_threads: The target number of threads.
+        
+    Returns:
+        The expanded thread offsets in their original format.
+    """
     if offsets is None:
         return None
 
@@ -805,6 +1105,19 @@ class ShmemCompatibleCacheStage:
         smem_simulator: Optional[ShmemFunctionalSimulator] = None,
         smem_simulator_kwargs: Optional[Dict[str, Any]] = None,
     ):
+        """
+        Initialize the compatibility cache stage wrapper.
+        
+        Args:
+            name: The name of the cache stage.
+            behind_latch: The latch providing input requests.
+            forward_ifs_write: Interfaces for forwarding responses.
+            mem_req_if: Interface for memory requests.
+            mem_resp_if: Interface for memory responses.
+            config_path: Path to the configuration file.
+            smem_simulator: An optional pre-initialized simulator instance.
+            smem_simulator_kwargs: Additional arguments for simulator initialization.
+        """
         self.name = name
         self.behind_latch = behind_latch
         self.forward_ifs_write = forward_ifs_write or {}
@@ -829,9 +1142,21 @@ class ShmemCompatibleCacheStage:
             self.behind_latch.forward_if = self.forward_ifs_write[self.DCACHE_LSU_IF_NAME]
 
     def get_cycle_count(self) -> int:
+        """
+        Get the current cycle count of the simulator.
+        
+        Returns:
+            The total number of cycles executed.
+        """
         return int(self.cycle_count)
 
     def compute(self) -> None:
+        """
+        Perform the computation for a single cycle in the cache stage.
+        
+        Pops requests from the latch, issues them to the simulator, steps the simulator,
+        and pushes completions to the output buffer.
+        """
         self.cycle_count += 1
         self.cycle = self.cycle_count
 
@@ -856,6 +1181,9 @@ class ShmemCompatibleCacheStage:
         self._push_output()
 
     def _collect_new_completions(self) -> None:
+        """
+        Collect newly completed transactions from the simulator and format them as responses.
+        """
         if len(self.sim.completions) <= self._completion_cursor:
             return
         new_done = self.sim.completions[self._completion_cursor :]
@@ -867,6 +1195,9 @@ class ShmemCompatibleCacheStage:
         self._completion_cursor = len(self.sim.completions)
 
     def _push_output(self) -> None:
+        """
+        Push formatted responses from the output buffer to the forward interface.
+        """
         if self.DCACHE_LSU_IF_NAME not in self.forward_ifs_write:
             return
         interface = self.forward_ifs_write[self.DCACHE_LSU_IF_NAME]
@@ -877,6 +1208,18 @@ class ShmemCompatibleCacheStage:
                 interface.push(None)
 
     def _request_to_transaction(self, req: Any) -> Transaction:
+        """
+        Convert an incoming request object or dictionary into a Transaction instance.
+        
+        Args:
+            req: The raw request object or dictionary.
+            
+        Returns:
+            A formatted Transaction instance.
+            
+        Raises:
+            ValueError: If the request type is unsupported.
+        """
         if isinstance(req, Transaction):
             return req
 
@@ -962,6 +1305,21 @@ class ShmemCompatibleCacheStage:
         thread_id: int,
         thread_block_offset: Optional[int],
     ) -> int:
+        """
+        Format store data based on the requested access size (word, half, byte).
+        
+        Performs read-modify-write for sub-word accesses.
+        
+        Args:
+            addr: The target memory address.
+            data: The raw data to store.
+            size: The access size ("word", "half", "byte").
+            thread_id: The ID of the requesting thread.
+            thread_block_offset: The offset for the thread block.
+            
+        Returns:
+            The formatted data word to store.
+        """
         if size == "word":
             return int(data) & 0xFFFF_FFFF
 
@@ -985,6 +1343,16 @@ class ShmemCompatibleCacheStage:
         return int(data) & 0xFFFF_FFFF
 
     def _completion_to_compat_response(self, done: Completion, req: Any) -> Any:
+        """
+        Convert a simulator Completion record into a compatible memory response object.
+        
+        Args:
+            done: The completion record.
+            req: The original request object.
+            
+        Returns:
+            A memory response object compatible with the surrounding system.
+        """
         if isinstance(req, dict):
             addr = req.get("addr_val", done.absolute_shmem_addr)
         else:
@@ -1018,6 +1386,12 @@ class ShmemCompatibleCacheStage:
         )
 
     def _make_flush_response(self) -> Any:
+        """
+        Create a flush completion response object.
+        
+        Returns:
+            A flush response object.
+        """
         return _DMEM_RESPONSE_CLS(
             type="FLUSH_COMPLETE",
             req=None,
@@ -1043,16 +1417,44 @@ class SmemArbiter:
     conflicting requests into different cycles, and feeds them to the simulator.
     """
     def __init__(self, simulator: ShmemFunctionalSimulator):
+        """
+        Initialize the SMEM Arbiter.
+        
+        Args:
+            simulator: The underlying shared memory functional simulator.
+        """
         self.simulator = simulator
         self.num_banks = simulator.num_banks
         self.word_bytes = simulator.word_bytes
 
     def _xor_map(self, absolute_smem_addr: int, thread_block_offset: int) -> int:
+        """
+        Compute the XOR-mapped word address to reduce bank conflicts.
+        
+        Args:
+            absolute_smem_addr: The absolute shared memory address.
+            thread_block_offset: The offset for the current thread block.
+            
+        Returns:
+            The XOR-mapped word address.
+        """
+        # Convert byte addresses to word addresses for banking logic
         word_addr = absolute_smem_addr // self.word_bytes
         offset_words = thread_block_offset // self.word_bytes
+        # XOR the word address with the offset to distribute accesses across banks and minimize conflicts
         return word_addr ^ offset_words
 
     def _address_crossbar(self, absolute_smem_addr: int, thread_block_offset: int) -> Tuple[int, int]:
+        """
+        Route an address through the crossbar to determine its bank and slot.
+        
+        Args:
+            absolute_smem_addr: The absolute shared memory address.
+            thread_block_offset: The offset for the current thread block.
+            
+        Returns:
+            A tuple of (bank_index, bank_slot).
+        """
         absolute_word = absolute_smem_addr // self.word_bytes
         mapped_word = self._xor_map(absolute_smem_addr, thread_block_offset)
         bank = mapped_word % self.num_banks
@@ -1060,16 +1462,41 @@ class SmemArbiter:
         return bank, bank_slot
 
     def _get_bank(self, txn: Transaction) -> int:
+        """
+        Determine the target bank for a given transaction.
+        
+        Args:
+            txn: The transaction to evaluate.
+            
+        Returns:
+            The index of the target bank.
+        """
         absolute_addr = int(txn.shmem_addr) + self.simulator._effective_thread_block_offset(txn)
         bank, _ = self._address_crossbar(absolute_addr, self.simulator._effective_thread_block_offset(txn))
         return bank
 
-    def _log_thread_state(self, txn: Transaction, cycle: int, bank: int, bank_slot: int, absolute_addr: int):
+    def _log_thread_state(self, txn: Transaction, cycle: int, bank: int, bank_slot: int, absolute_addr: int) -> None:
+        """
+        Log the state of a thread\'s memory access for debugging.
+        
+        Args:
+            txn: The transaction being processed.
+            cycle: The current cycle count.
+            bank: The target bank index.
+            bank_slot: The target bank slot.
+            absolute_addr: The absolute memory address.
+        """
         print(f"[DEBUG] Cycle {cycle} | Thread {txn.thread_id:2d} | Addr 0x{txn.shmem_addr:04x} | "
               f"AbsAddr 0x{absolute_addr:04x} | XOR Map -> Bank {bank:2d} | Slot {bank_slot:4d} | "
               f"CLOS Network Input: Valid")
 
     def process_batch(self, transactions: List[Transaction]) -> None:
+        """
+        Process a batch of transactions, resolving bank conflicts and issuing them.
+        
+        Args:
+            transactions: A list of transactions to process.
+        """
         print(f"\n[DEBUG] --- SmemArbiter Processing Batch of {len(transactions)} Transactions ---")
         print("[DEBUG] Assuming input to the system does NOT have any bank conflicts.")
         
@@ -1091,7 +1518,10 @@ class SmemArbiter:
         print("[DEBUG] --- SmemArbiter Batch Processing Complete ---\n")
 
 
-def test_32_threads_different_addresses():
+def test_32_threads_different_addresses() -> None:
+    """
+    Test 32 threads accessing different addresses without bank conflicts.
+    """
     print("\n=== TEST: 32 Threads with Different Addresses (No Conflicts) ===")
     sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
     arbiter = SmemArbiter(sim)
@@ -1110,7 +1540,10 @@ def test_32_threads_different_addresses():
         sim.step()
     print(f"Completed in {sim.cycle} cycles.")
 
-def test_divergence():
+def test_divergence() -> None:
+    """
+    Test divergence scenario resolved by the arbiter.
+    """
     print("\n=== TEST: Divergence (Resolved by Arbiter) ===")
     sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
     arbiter = SmemArbiter(sim)
@@ -1128,7 +1561,10 @@ def test_divergence():
         sim.step()
     print(f"Completed in {sim.cycle} cycles.")
 
-def test_integration_smem_arbiter():
+def test_integration_smem_arbiter() -> None:
+    """
+    Test integration of the SMEM Arbiter with the functional simulator.
+    """
     print("\n=== TEST: Integration with SMEM Arbiter ===")
     sim = ShmemFunctionalSimulator(num_threads=4, num_banks=32)
     arbiter = SmemArbiter(sim)
@@ -1145,7 +1581,10 @@ def test_integration_smem_arbiter():
         sim.step()
     print(f"Completed in {sim.cycle} cycles.")
 
-def test_multicast_divergence():
+def test_multicast_divergence() -> None:
+    """
+    Test multicast divergence scenarios (16-wide and 32-wide).
+    """
     print("\n=== TEST: Multicast Divergence (32-wide and 16-wide) ===")
     sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
     arbiter = SmemArbiter(sim)
