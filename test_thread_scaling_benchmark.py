@@ -32,7 +32,7 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Sequence, Tuple
 
-from main import ShmemFunctionalSimulator, Transaction, TxnType
+from main import ShmemFunctionalSimulator, Transaction, TxnType, load_smem_config
 from test_dcache_and_smem import _load_dcache_symbols
 
 
@@ -58,9 +58,13 @@ DCACHE_NUM_BANKS = int(DCACHE_NUM_BANKS)
 DCACHE_NUM_SETS = int(DCACHE_NUM_SETS)
 DCACHE_NUM_WAYS = int(DCACHE_NUM_WAYS)
 DCACHE_BLOCK_WORDS = int(DCACHE_BLOCK_SIZE_WORDS)
-SMEM_NUM_BANKS = 32
-WORD_BYTES = 4
-MISS_LATENCY_CYCLES = 12
+
+_SMEM_CFG = load_smem_config()
+SMEM_NUM_BANKS = int(_SMEM_CFG.num_banks)
+WORD_BYTES = int(_SMEM_CFG.word_bytes)
+MISS_LATENCY_CYCLES = int(_SMEM_CFG.dram_latency_cycles)
+SMEM_ARBITER_ISSUE_WIDTH = int(_SMEM_CFG.arbiter_issue_width)
+
 SAXPY_A = 3
 DRAM_BASE_ADDR = 0x100000
 
@@ -315,7 +319,7 @@ def _run_smem_scenario(
         num_banks=SMEM_NUM_BANKS,
         word_bytes=WORD_BYTES,
         dram_latency_cycles=int(dram_latency_cycles),
-        arbiter_issue_width=4,
+        arbiter_issue_width=SMEM_ARBITER_ISSUE_WIDTH,
         num_threads=int(num_threads),
     )
     _preload_smem_words(sim, scenario.preload_words)

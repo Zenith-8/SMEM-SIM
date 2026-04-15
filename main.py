@@ -1747,54 +1747,82 @@ class SmemArbiter:
         }
 
 
+def _sim_from_config(*, num_threads: int, verbose: bool = True) -> ShmemFunctionalSimulator:
+    """
+    Create a simulator whose hardware params (num_banks, word_bytes,
+    dram_latency_cycles, arbiter_issue_width) come from ``.config``.
+    ``num_threads`` is always test-specific so it is passed explicitly.
+    Thread block offsets from the config are expanded (zero-padded) or
+    truncated to match the requested ``num_threads``.
+    """
+    cfg = load_smem_config()
+    kwargs = cfg.to_sim_kwargs()
+    kwargs["num_threads"] = num_threads
+    kwargs["thread_block_offsets"] = _expand_thread_offsets_to_num_threads(
+        kwargs.get("thread_block_offsets"), num_threads,
+    )
+    kwargs["verbose"] = verbose
+    return ShmemFunctionalSimulator(**kwargs)
+
+
 def test_32_threads_different_addresses() -> None:
     """
     Baseline: 32 threads accessing different addresses without bank conflicts.
-    All transactions should fit in a single sub-batch.
+    With no bank conflicts, the number of sub-batches is ceil(N / issue_width).
     """
     print("\n=== TEST: 32 Threads with Different Addresses (No Conflicts) ===")
-    sim = ShmemFunctionalSimulator(
-        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
-    )
+    sim = _sim_from_config(num_threads=32)
     arbiter = SmemArbiter(sim)
 
+    num_threads = 32
     txns = [
-        Transaction(txn_type=TxnType.SH_LD, shmem_addr=i * 4, thread_id=i)
-        for i in range(32)
+        Transaction(
+            txn_type=TxnType.SH_LD,
+            shmem_addr=i * sim.word_bytes,
+            thread_id=i,
+        )
+        for i in range(min(num_threads, sim.num_banks))
     ]
 
     result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
 
-    assert result['num_sub_batches'] == 1, (
-        f"Expected 1 sub-batch, got {result['num_sub_batches']}"
+    expected_batches = -(-len(txns) // sim.arbiter_issue_width)
+    assert result['num_sub_batches'] == expected_batches, (
+        f"Expected {expected_batches} sub-batch(es) "
+        f"(issue_width={sim.arbiter_issue_width}), "
+        f"got {result['num_sub_batches']}"
     )
-    print(f"Completed in {sim.cycle} cycles. Sub-batches: {result['num_sub_batches']}")
+    print(
+        f"Completed in {sim.cycle} cycles. "
+        f"Sub-batches: {result['num_sub_batches']} "
+        f"(issue_width={sim.arbiter_issue_width})"
+    )
 
 
 def test_divergence() -> None:
     """
     Bank-conflict scenario: all 32 threads hit the same shmem_addr (bank 0).
-    The arbiter must serialize them into 32 sub-batches of 1 transaction each.
+    Only 1 request per bank per sub-batch, so we need exactly N sub-batches.
     """
     print("\n=== TEST: Divergence -- All Threads Hit Same Bank ===")
-    sim = ShmemFunctionalSimulator(
-        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
-    )
+    num_threads = 32
+    sim = _sim_from_config(num_threads=num_threads)
     arbiter = SmemArbiter(sim)
 
     txns = [
         Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x00, thread_id=i)
-        for i in range(32)
+        for i in range(num_threads)
     ]
 
     result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
 
-    assert result['num_sub_batches'] == 32, (
-        f"Expected 32 sub-batches (one per conflicting txn), got {result['num_sub_batches']}"
+    assert result['num_sub_batches'] == num_threads, (
+        f"Expected {num_threads} sub-batches (one per conflicting txn), "
+        f"got {result['num_sub_batches']}"
     )
     print(
         f"Completed in {sim.cycle} cycles. "
@@ -1809,9 +1837,7 @@ def test_integration_smem_arbiter() -> None:
     split across two sub-batches.
     """
     print("\n=== TEST: Integration with SMEM Arbiter (Bank Conflicts in Stores) ===")
-    sim = ShmemFunctionalSimulator(
-        num_threads=4, num_banks=32, arbiter_issue_width=4, verbose=True,
-    )
+    sim = _sim_from_config(num_threads=4)
     arbiter = SmemArbiter(sim)
 
     txns = [
@@ -1837,27 +1863,35 @@ def test_integration_smem_arbiter() -> None:
 def test_multicast_divergence() -> None:
     """
     Multi-way bank conflict: half the threads hit bank 0, half hit bank 1.
-    With issue_width=32, each sub-batch can service at most 1 from each bank
-    group, so we expect 16 sub-batches.
+    Each sub-batch can service at most min(2, issue_width) transactions
+    (one per bank), so the number of sub-batches depends on both the
+    conflict depth (16) and the issue width.
     """
     print("\n=== TEST: Multicast Divergence (2-bank, 16-way conflict) ===")
-    sim = ShmemFunctionalSimulator(
-        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
-    )
+    sim = _sim_from_config(num_threads=32)
     arbiter = SmemArbiter(sim)
 
+    per_bank = 16
     txns: List[Transaction] = []
-    for i in range(16):
+    for i in range(per_bank):
         txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x00, thread_id=i))
-    for i in range(16, 32):
-        txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x04, thread_id=i))
+    for i in range(per_bank, 2 * per_bank):
+        txns.append(Transaction(
+            txn_type=TxnType.SH_LD,
+            shmem_addr=sim.word_bytes,
+            thread_id=i,
+        ))
 
     result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
 
-    assert result['num_sub_batches'] == 16, (
-        f"Expected 16 sub-batches (16 conflicts per bank), got {result['num_sub_batches']}"
+    per_batch = min(2, sim.arbiter_issue_width)
+    expected_batches = -(-len(txns) // per_batch)
+    assert result['num_sub_batches'] == expected_batches, (
+        f"Expected {expected_batches} sub-batches "
+        f"(per_batch={per_batch}, issue_width={sim.arbiter_issue_width}), "
+        f"got {result['num_sub_batches']}"
     )
     print(
         f"Completed in {sim.cycle} cycles. "

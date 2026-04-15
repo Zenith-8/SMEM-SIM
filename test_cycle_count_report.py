@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import io
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from main import ShmemFunctionalSimulator, Transaction, TxnType
+from main import ShmemFunctionalSimulator, Transaction, TxnType, load_smem_config
 from test_dcache_and_smem import _load_dcache_symbols
 
 
@@ -115,14 +115,16 @@ def _run_smem_to_completion(
     txn: Transaction,
     *,
     dram_init: Optional[Dict[int, int]] = None,
-    dram_latency_cycles: int = 1,
+    dram_latency_cycles: Optional[int] = None,
     preload: Optional[Callable[[ShmemFunctionalSimulator], None]] = None,
     max_cycles: int = 2000,
 ) -> SmemRunResult:
-    sim = ShmemFunctionalSimulator(
-        dram_init=dram_init or {},
-        dram_latency_cycles=int(dram_latency_cycles),
-    )
+    cfg = load_smem_config()
+    kwargs = cfg.to_sim_kwargs()
+    kwargs["dram_init"] = dram_init or {}
+    if dram_latency_cycles is not None:
+        kwargs["dram_latency_cycles"] = int(dram_latency_cycles)
+    sim = ShmemFunctionalSimulator(**kwargs)
     if preload is not None:
         preload(sim)
 

@@ -10,103 +10,44 @@ Completions:
     cycle 0: arbiter stall on bank conflict (bank 8)
     cycle 1: arbiter -> SMEM Read Queue
     cycle 1: SMEM Read Controller read bank 8, slot 0
-{'txn_id': 3, 'txn_type': 'async.st.smem2dram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 4096, 'shmem_addr': 32, 'absolute_shmem_addr': 32, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 1: arbiter stall on bank conflict (bank 8)', 'cycle 2: arbiter -> SMEM Read Queue', 'cycle 2: SMEM Read Controller -> Memory Write Queue', 'cycle 2: AXI write issued @0x1000, commit due cycle 3', 'cycle 3: AXI write committed @0x1000']}
+{'txn_id': 5, 'txn_type': 'sh.ld', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': 0, 'note': 'Data crossbar intentionally not modeled; value returned directly.', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 2: arbiter stall on bank conflict (bank 9)', 'cycle 3: arbiter -> SMEM Read Queue', 'cycle 3: SMEM Read Controller read bank 9, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 2: arbiter stall on bank conflict (bank 9)
+    cycle 3: arbiter -> SMEM Read Queue
+    cycle 3: SMEM Read Controller read bank 9, slot 0
+{'txn_id': 3, 'txn_type': 'async.st.smem2dram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 14, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 4096, 'shmem_addr': 32, 'absolute_shmem_addr': 32, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 1: arbiter stall on bank conflict (bank 8)', 'cycle 2: arbiter -> SMEM Read Queue', 'cycle 2: SMEM Read Controller -> Memory Write Queue', 'cycle 2: AXI write issued @0x1000, commit due cycle 14', 'cycle 14: AXI write committed @0x1000']}
   Traceback:
     cycle 0: accepted by simulator input (thread=0, tbo=0x0)
     cycle 1: arbiter stall on bank conflict (bank 8)
     cycle 2: arbiter -> SMEM Read Queue
     cycle 2: SMEM Read Controller -> Memory Write Queue
-    cycle 2: AXI write issued @0x1000, commit due cycle 3
-    cycle 3: AXI write committed @0x1000
-{'txn_id': 4, 'txn_type': 'async.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 4096, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 2: arbiter -> SMEM Write Queue', 'cycle 2: issued AXI read @0x1000, response due cycle 3', 'cycle 3: AXI read response -> Memory Read Queue', 'cycle 3: Memory Read Queue -> SMEM Write Controller -> bank 9, slot 0']}
+    cycle 2: AXI write issued @0x1000, commit due cycle 14
+    cycle 14: AXI write committed @0x1000
+{'txn_id': 4, 'txn_type': 'async.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 14, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 4096, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 2: arbiter -> SMEM Write Queue', 'cycle 2: issued AXI read @0x1000, response due cycle 14', 'cycle 14: AXI read response -> Memory Read Queue', 'cycle 14: Memory Read Queue -> SMEM Write Controller -> bank 9, slot 0']}
   Traceback:
     cycle 0: accepted by simulator input (thread=0, tbo=0x0)
     cycle 2: arbiter -> SMEM Write Queue
-    cycle 2: issued AXI read @0x1000, response due cycle 3
-    cycle 3: AXI read response -> Memory Read Queue
-    cycle 3: Memory Read Queue -> SMEM Write Controller -> bank 9, slot 0
-{'txn_id': 5, 'txn_type': 'sh.ld', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 4, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': 0, 'note': 'Data crossbar intentionally not modeled; value returned directly.', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 2: arbiter stall on bank conflict (bank 9)', 'cycle 3: arbiter -> SMEM Read Queue', 'cycle 3: SMEM Read Controller stall (bank 9 busy)', 'cycle 4: SMEM Read Controller read bank 9, slot 0']}
-  Traceback:
-    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
-    cycle 2: arbiter stall on bank conflict (bank 9)
-    cycle 3: arbiter -> SMEM Read Queue
-    cycle 3: SMEM Read Controller stall (bank 9 busy)
-    cycle 4: SMEM Read Controller read bank 9, slot 0
+    cycle 2: issued AXI read @0x1000, response due cycle 14
+    cycle 14: AXI read response -> Memory Read Queue
+    cycle 14: Memory Read Queue -> SMEM Write Controller -> bank 9, slot 0
 
 === TEST: 32 Threads with Different Addresses (No Conflicts) ===
 
-[DEBUG] --- SmemArbiter Processing Batch of 32 Transactions into 1 sub-batch(es) ---
+[DEBUG] --- SmemArbiter Processing Batch of 32 Transactions into 8 sub-batch(es) ---
 [DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.ld                | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | bank_content=0x00000000
 [DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | sh.ld                | Addr 0x0004 | AbsAddr 0x0004 | TBO 0x0000 | XOR Map -> Bank  1 | Slot    0 | bank_content=0x00000000
 [DEBUG] Sub-batch 0 | Cycle 0 | Thread  2 | sh.ld                | Addr 0x0008 | AbsAddr 0x0008 | TBO 0x0000 | XOR Map -> Bank  2 | Slot    0 | bank_content=0x00000000
 [DEBUG] Sub-batch 0 | Cycle 0 | Thread  3 | sh.ld                | Addr 0x000c | AbsAddr 0x000c | TBO 0x0000 | XOR Map -> Bank  3 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  4 | sh.ld                | Addr 0x0010 | AbsAddr 0x0010 | TBO 0x0000 | XOR Map -> Bank  4 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  5 | sh.ld                | Addr 0x0014 | AbsAddr 0x0014 | TBO 0x0000 | XOR Map -> Bank  5 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  6 | sh.ld                | Addr 0x0018 | AbsAddr 0x0018 | TBO 0x0000 | XOR Map -> Bank  6 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  7 | sh.ld                | Addr 0x001c | AbsAddr 0x001c | TBO 0x0000 | XOR Map -> Bank  7 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  8 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread  9 | sh.ld                | Addr 0x0024 | AbsAddr 0x0024 | TBO 0x0000 | XOR Map -> Bank  9 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 10 | sh.ld                | Addr 0x0028 | AbsAddr 0x0028 | TBO 0x0000 | XOR Map -> Bank 10 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 11 | sh.ld                | Addr 0x002c | AbsAddr 0x002c | TBO 0x0000 | XOR Map -> Bank 11 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 12 | sh.ld                | Addr 0x0030 | AbsAddr 0x0030 | TBO 0x0000 | XOR Map -> Bank 12 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 13 | sh.ld                | Addr 0x0034 | AbsAddr 0x0034 | TBO 0x0000 | XOR Map -> Bank 13 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 14 | sh.ld                | Addr 0x0038 | AbsAddr 0x0038 | TBO 0x0000 | XOR Map -> Bank 14 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 15 | sh.ld                | Addr 0x003c | AbsAddr 0x003c | TBO 0x0000 | XOR Map -> Bank 15 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 16 | sh.ld                | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 17 | sh.ld                | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 18 | sh.ld                | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 19 | sh.ld                | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 20 | sh.ld                | Addr 0x0050 | AbsAddr 0x0050 | TBO 0x0000 | XOR Map -> Bank 20 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 21 | sh.ld                | Addr 0x0054 | AbsAddr 0x0054 | TBO 0x0000 | XOR Map -> Bank 21 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 22 | sh.ld                | Addr 0x0058 | AbsAddr 0x0058 | TBO 0x0000 | XOR Map -> Bank 22 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 23 | sh.ld                | Addr 0x005c | AbsAddr 0x005c | TBO 0x0000 | XOR Map -> Bank 23 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 24 | sh.ld                | Addr 0x0060 | AbsAddr 0x0060 | TBO 0x0000 | XOR Map -> Bank 24 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 25 | sh.ld                | Addr 0x0064 | AbsAddr 0x0064 | TBO 0x0000 | XOR Map -> Bank 25 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 26 | sh.ld                | Addr 0x0068 | AbsAddr 0x0068 | TBO 0x0000 | XOR Map -> Bank 26 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 27 | sh.ld                | Addr 0x006c | AbsAddr 0x006c | TBO 0x0000 | XOR Map -> Bank 27 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 28 | sh.ld                | Addr 0x0070 | AbsAddr 0x0070 | TBO 0x0000 | XOR Map -> Bank 28 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 29 | sh.ld                | Addr 0x0074 | AbsAddr 0x0074 | TBO 0x0000 | XOR Map -> Bank 29 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 30 | sh.ld                | Addr 0x0078 | AbsAddr 0x0078 | TBO 0x0000 | XOR Map -> Bank 30 | Slot    0 | bank_content=0x00000000
-[DEBUG] Sub-batch 0 | Cycle 0 | Thread 31 | sh.ld                | Addr 0x007c | AbsAddr 0x007c | TBO 0x0000 | XOR Map -> Bank 31 | Slot    0 | bank_content=0x00000000
-[DEBUG] --- SmemArbiter Batch Processing Complete ---
-
 
 ------------------------------------------------------------------------------
   CYCLE 0  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue (32):
+  Input Queue (4):
     T00 #1 sh.ld                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | bank_content=0x00000000
     T01 #2 sh.ld                 shmem=0x0004  abs=0x0004  tbo=0x0000  -> bank  1, slot 0  | bank_content=0x00000000
     T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
-    T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
-    T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
-    T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
-    T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Read Queue: (empty)
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
@@ -121,81 +62,33 @@ Completions:
   CYCLE 0  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (31):
+  SMEM Read Queue (3):
     T01 #2 sh.ld                 shmem=0x0004  abs=0x0004  tbo=0x0000  -> bank  1, slot 0  | bank_content=0x00000000
     T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
-    T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
-    T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
-    T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
-    T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 1 | Cycle 1 | Thread  4 | sh.ld                | Addr 0x0010 | AbsAddr 0x0010 | TBO 0x0000 | XOR Map -> Bank  4 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 1 | Cycle 1 | Thread  5 | sh.ld                | Addr 0x0014 | AbsAddr 0x0014 | TBO 0x0000 | XOR Map -> Bank  5 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 1 | Cycle 1 | Thread  6 | sh.ld                | Addr 0x0018 | AbsAddr 0x0018 | TBO 0x0000 | XOR Map -> Bank  6 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 1 | Cycle 1 | Thread  7 | sh.ld                | Addr 0x001c | AbsAddr 0x001c | TBO 0x0000 | XOR Map -> Bank  7 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 1  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (31):
-    T01 #2 sh.ld                 shmem=0x0004  abs=0x0004  tbo=0x0000  -> bank  1, slot 0  | bank_content=0x00000000
-    T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
-    T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
+  Input Queue (4):
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (3):
+    T01 #2 sh.ld                 shmem=0x0004  abs=0x0004  tbo=0x0000  -> bank  1, slot 0  | bank_content=0x00000000
+    T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
+    T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -209,79 +102,39 @@ Completions:
   CYCLE 1  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (30):
+  SMEM Read Queue (6):
     T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 2 | Cycle 2 | Thread  8 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 2 | Cycle 2 | Thread  9 | sh.ld                | Addr 0x0024 | AbsAddr 0x0024 | TBO 0x0000 | XOR Map -> Bank  9 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 2 | Cycle 2 | Thread 10 | sh.ld                | Addr 0x0028 | AbsAddr 0x0028 | TBO 0x0000 | XOR Map -> Bank 10 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 2 | Cycle 2 | Thread 11 | sh.ld                | Addr 0x002c | AbsAddr 0x002c | TBO 0x0000 | XOR Map -> Bank 11 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 2  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (30):
+  Input Queue (4):
+    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
+    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
+    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
+    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (6):
     T02 #3 sh.ld                 shmem=0x0008  abs=0x0008  tbo=0x0000  -> bank  2, slot 0  | bank_content=0x00000000
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -295,7 +148,7 @@ Completions:
   CYCLE 2  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (29):
+  SMEM Read Queue (9):
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
@@ -305,38 +158,26 @@ Completions:
     T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
     T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
     T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 3 | Cycle 3 | Thread 12 | sh.ld                | Addr 0x0030 | AbsAddr 0x0030 | TBO 0x0000 | XOR Map -> Bank 12 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 3 | Cycle 3 | Thread 13 | sh.ld                | Addr 0x0034 | AbsAddr 0x0034 | TBO 0x0000 | XOR Map -> Bank 13 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 3 | Cycle 3 | Thread 14 | sh.ld                | Addr 0x0038 | AbsAddr 0x0038 | TBO 0x0000 | XOR Map -> Bank 14 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 3 | Cycle 3 | Thread 15 | sh.ld                | Addr 0x003c | AbsAddr 0x003c | TBO 0x0000 | XOR Map -> Bank 15 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 3  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (29):
+  Input Queue (4):
+    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
+    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
+    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
+    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (9):
     T03 #4 sh.ld                 shmem=0x000c  abs=0x000c  tbo=0x0000  -> bank  3, slot 0  | bank_content=0x00000000
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
@@ -346,26 +187,6 @@ Completions:
     T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
     T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  -> bank 10, slot 0  | bank_content=0x00000000
     T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  -> bank 11, slot 0  | bank_content=0x00000000
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  -> bank 12, slot 0  | bank_content=0x00000000
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -379,7 +200,7 @@ Completions:
   CYCLE 3  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (28):
+  SMEM Read Queue (12):
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
@@ -392,34 +213,26 @@ Completions:
     T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
     T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
     T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 4 | Cycle 4 | Thread 16 | sh.ld                | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 4 | Cycle 4 | Thread 17 | sh.ld                | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 4 | Cycle 4 | Thread 18 | sh.ld                | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 4 | Cycle 4 | Thread 19 | sh.ld                | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 4  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (28):
+  Input Queue (4):
+    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
+    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
+    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
+    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (12):
     T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  -> bank  4, slot 0  | bank_content=0x00000000
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
@@ -432,22 +245,6 @@ Completions:
     T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  -> bank 13, slot 0  | bank_content=0x00000000
     T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  -> bank 14, slot 0  | bank_content=0x00000000
     T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  -> bank 15, slot 0  | bank_content=0x00000000
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | bank_content=0x00000000
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -455,13 +252,13 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  (issued @0, completed @4)  | read_data=0x00000000
+    T04 #5 sh.ld                 shmem=0x0010  abs=0x0010  tbo=0x0000  (issued @1, completed @4)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 4  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (27):
+  SMEM Read Queue (15):
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
@@ -477,30 +274,26 @@ Completions:
     T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
     T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
     T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 5 | Cycle 5 | Thread 20 | sh.ld                | Addr 0x0050 | AbsAddr 0x0050 | TBO 0x0000 | XOR Map -> Bank 20 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 5 | Cycle 5 | Thread 21 | sh.ld                | Addr 0x0054 | AbsAddr 0x0054 | TBO 0x0000 | XOR Map -> Bank 21 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 5 | Cycle 5 | Thread 22 | sh.ld                | Addr 0x0058 | AbsAddr 0x0058 | TBO 0x0000 | XOR Map -> Bank 22 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 5 | Cycle 5 | Thread 23 | sh.ld                | Addr 0x005c | AbsAddr 0x005c | TBO 0x0000 | XOR Map -> Bank 23 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 5  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (27):
+  Input Queue (4):
+    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
+    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
+    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
+    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (15):
     T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  -> bank  5, slot 0  | bank_content=0x00000000
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
@@ -516,18 +309,6 @@ Completions:
     T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | bank_content=0x00000000
     T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | bank_content=0x00000000
     T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | bank_content=0x00000000
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | bank_content=0x00000000
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -535,13 +316,13 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  (issued @0, completed @5)  | read_data=0x00000000
+    T05 #6 sh.ld                 shmem=0x0014  abs=0x0014  tbo=0x0000  (issued @1, completed @5)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 5  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (26):
+  SMEM Read Queue (18):
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
     T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
@@ -560,26 +341,26 @@ Completions:
     T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
     T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
     T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 6 | Cycle 6 | Thread 24 | sh.ld                | Addr 0x0060 | AbsAddr 0x0060 | TBO 0x0000 | XOR Map -> Bank 24 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 6 | Cycle 6 | Thread 25 | sh.ld                | Addr 0x0064 | AbsAddr 0x0064 | TBO 0x0000 | XOR Map -> Bank 25 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 6 | Cycle 6 | Thread 26 | sh.ld                | Addr 0x0068 | AbsAddr 0x0068 | TBO 0x0000 | XOR Map -> Bank 26 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 6 | Cycle 6 | Thread 27 | sh.ld                | Addr 0x006c | AbsAddr 0x006c | TBO 0x0000 | XOR Map -> Bank 27 | Slot    0 | bank_content=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 6  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (26):
+  Input Queue (4):
+    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
+    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
+    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
+    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (18):
     T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  -> bank  6, slot 0  | bank_content=0x00000000
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
     T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
@@ -598,14 +379,6 @@ Completions:
     T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | bank_content=0x00000000
     T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  -> bank 22, slot 0  | bank_content=0x00000000
     T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  -> bank 23, slot 0  | bank_content=0x00000000
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  -> bank 24, slot 0  | bank_content=0x00000000
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -613,13 +386,13 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  (issued @0, completed @6)  | read_data=0x00000000
+    T06 #7 sh.ld                 shmem=0x0018  abs=0x0018  tbo=0x0000  (issued @1, completed @6)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 6  [END]
 ------------------------------------------------------------------------------
   Input Queue: (empty)
-  SMEM Read Queue (25):
+  SMEM Read Queue (21):
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
     T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
     T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
@@ -641,22 +414,28 @@ Completions:
     T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
     T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
     T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
+[DEBUG] Sub-batch 7 | Cycle 7 | Thread 28 | sh.ld                | Addr 0x0070 | AbsAddr 0x0070 | TBO 0x0000 | XOR Map -> Bank 28 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 7 | Cycle 7 | Thread 29 | sh.ld                | Addr 0x0074 | AbsAddr 0x0074 | TBO 0x0000 | XOR Map -> Bank 29 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 7 | Cycle 7 | Thread 30 | sh.ld                | Addr 0x0078 | AbsAddr 0x0078 | TBO 0x0000 | XOR Map -> Bank 30 | Slot    0 | bank_content=0x00000000
+[DEBUG] Sub-batch 7 | Cycle 7 | Thread 31 | sh.ld                | Addr 0x007c | AbsAddr 0x007c | TBO 0x0000 | XOR Map -> Bank 31 | Slot    0 | bank_content=0x00000000
+[DEBUG] --- SmemArbiter Batch Processing Complete ---
+
 
 ------------------------------------------------------------------------------
   CYCLE 7  [BEGIN]
 ------------------------------------------------------------------------------
-  Input Queue: (empty)
-  SMEM Read Queue (25):
+  Input Queue (4):
+    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
+    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
+    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
+    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
+  SMEM Read Queue (21):
     T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  -> bank  7, slot 0  | bank_content=0x00000000
     T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | bank_content=0x00000000
     T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0x00000000
@@ -678,10 +457,6 @@ Completions:
     T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  -> bank 25, slot 0  | bank_content=0x00000000
     T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  -> bank 26, slot 0  | bank_content=0x00000000
     T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  -> bank 27, slot 0  | bank_content=0x00000000
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  -> bank 28, slot 0  | bank_content=0x00000000
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  -> bank 29, slot 0  | bank_content=0x00000000
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  -> bank 30, slot 0  | bank_content=0x00000000
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  -> bank 31, slot 0  | bank_content=0x00000000
   SMEM Write Queue: (empty)
   Memory Read Queue: (empty)
   Memory Write Queue: (empty)
@@ -689,7 +464,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  (issued @0, completed @7)  | read_data=0x00000000
+    T07 #8 sh.ld                 shmem=0x001c  abs=0x001c  tbo=0x0000  (issued @1, completed @7)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 7  [END]
@@ -763,7 +538,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  (issued @0, completed @8)  | read_data=0x00000000
+    T08 #9 sh.ld                 shmem=0x0020  abs=0x0020  tbo=0x0000  (issued @2, completed @8)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 8  [END]
@@ -835,7 +610,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  (issued @0, completed @9)  | read_data=0x00000000
+    T09 #10 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  (issued @2, completed @9)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 9  [END]
@@ -905,7 +680,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  (issued @0, completed @10)  | read_data=0x00000000
+    T10 #11 sh.ld                 shmem=0x0028  abs=0x0028  tbo=0x0000  (issued @2, completed @10)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 10  [END]
@@ -973,7 +748,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  (issued @0, completed @11)  | read_data=0x00000000
+    T11 #12 sh.ld                 shmem=0x002c  abs=0x002c  tbo=0x0000  (issued @2, completed @11)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 11  [END]
@@ -1039,7 +814,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  (issued @0, completed @12)  | read_data=0x00000000
+    T12 #13 sh.ld                 shmem=0x0030  abs=0x0030  tbo=0x0000  (issued @3, completed @12)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 12  [END]
@@ -1103,7 +878,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  (issued @0, completed @13)  | read_data=0x00000000
+    T13 #14 sh.ld                 shmem=0x0034  abs=0x0034  tbo=0x0000  (issued @3, completed @13)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 13  [END]
@@ -1165,7 +940,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  (issued @0, completed @14)  | read_data=0x00000000
+    T14 #15 sh.ld                 shmem=0x0038  abs=0x0038  tbo=0x0000  (issued @3, completed @14)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 14  [END]
@@ -1225,7 +1000,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  (issued @0, completed @15)  | read_data=0x00000000
+    T15 #16 sh.ld                 shmem=0x003c  abs=0x003c  tbo=0x0000  (issued @3, completed @15)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 15  [END]
@@ -1283,7 +1058,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @0, completed @16)  | read_data=0x00000000
+    T16 #17 sh.ld                 shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @4, completed @16)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 16  [END]
@@ -1339,7 +1114,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @0, completed @17)  | read_data=0x00000000
+    T17 #18 sh.ld                 shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @4, completed @17)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 17  [END]
@@ -1393,7 +1168,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @0, completed @18)  | read_data=0x00000000
+    T18 #19 sh.ld                 shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @4, completed @18)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 18  [END]
@@ -1445,7 +1220,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @0, completed @19)  | read_data=0x00000000
+    T19 #20 sh.ld                 shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @4, completed @19)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 19  [END]
@@ -1495,7 +1270,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  (issued @0, completed @20)  | read_data=0x00000000
+    T20 #21 sh.ld                 shmem=0x0050  abs=0x0050  tbo=0x0000  (issued @5, completed @20)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 20  [END]
@@ -1543,7 +1318,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  (issued @0, completed @21)  | read_data=0x00000000
+    T21 #22 sh.ld                 shmem=0x0054  abs=0x0054  tbo=0x0000  (issued @5, completed @21)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 21  [END]
@@ -1589,7 +1364,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  (issued @0, completed @22)  | read_data=0x00000000
+    T22 #23 sh.ld                 shmem=0x0058  abs=0x0058  tbo=0x0000  (issued @5, completed @22)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 22  [END]
@@ -1633,7 +1408,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  (issued @0, completed @23)  | read_data=0x00000000
+    T23 #24 sh.ld                 shmem=0x005c  abs=0x005c  tbo=0x0000  (issued @5, completed @23)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 23  [END]
@@ -1675,7 +1450,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  (issued @0, completed @24)  | read_data=0x00000000
+    T24 #25 sh.ld                 shmem=0x0060  abs=0x0060  tbo=0x0000  (issued @6, completed @24)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 24  [END]
@@ -1715,7 +1490,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  (issued @0, completed @25)  | read_data=0x00000000
+    T25 #26 sh.ld                 shmem=0x0064  abs=0x0064  tbo=0x0000  (issued @6, completed @25)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 25  [END]
@@ -1753,7 +1528,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  (issued @0, completed @26)  | read_data=0x00000000
+    T26 #27 sh.ld                 shmem=0x0068  abs=0x0068  tbo=0x0000  (issued @6, completed @26)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 26  [END]
@@ -1789,7 +1564,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  (issued @0, completed @27)  | read_data=0x00000000
+    T27 #28 sh.ld                 shmem=0x006c  abs=0x006c  tbo=0x0000  (issued @6, completed @27)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 27  [END]
@@ -1823,7 +1598,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  (issued @0, completed @28)  | read_data=0x00000000
+    T28 #29 sh.ld                 shmem=0x0070  abs=0x0070  tbo=0x0000  (issued @7, completed @28)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 28  [END]
@@ -1855,7 +1630,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  (issued @0, completed @29)  | read_data=0x00000000
+    T29 #30 sh.ld                 shmem=0x0074  abs=0x0074  tbo=0x0000  (issued @7, completed @29)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 29  [END]
@@ -1885,7 +1660,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  (issued @0, completed @30)  | read_data=0x00000000
+    T30 #31 sh.ld                 shmem=0x0078  abs=0x0078  tbo=0x0000  (issued @7, completed @30)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 30  [END]
@@ -1913,7 +1688,7 @@ Completions:
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
   >> Completed this cycle (1):
-    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  (issued @0, completed @31)  | read_data=0x00000000
+    T31 #32 sh.ld                 shmem=0x007c  abs=0x007c  tbo=0x0000  (issued @7, completed @31)  | read_data=0x00000000
 
 ------------------------------------------------------------------------------
   CYCLE 31  [END]
@@ -1926,7 +1701,7 @@ Completions:
   Pending DRAM Reads: (empty)
   Pending DRAM Writes: (empty)
 ------------------------------------------------------------------------------
-Completed in 32 cycles. Sub-batches: 1
+Completed in 32 cycles. Sub-batches: 8 (issue_width=4)
 
 === TEST: Divergence -- All Threads Hit Same Bank ===
 
