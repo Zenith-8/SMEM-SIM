@@ -295,6 +295,7 @@ class ShmemFunctionalSimulator:
         arbiter_issue_width: int = 4,
         num_threads: int = 1,
         thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+        verbose: bool = False,
     ) -> None:
         """
         Initialize the shared memory functional simulator.
@@ -307,6 +308,7 @@ class ShmemFunctionalSimulator:
             arbiter_issue_width: Number of requests the arbiter can issue per cycle.
             num_threads: Total number of threads.
             thread_block_offsets: Offsets for each thread block.
+            verbose: When True, print per-cycle state summaries during step().
         """
         if num_banks <= 0:
             raise ValueError("num_banks must be > 0.")
@@ -319,6 +321,7 @@ class ShmemFunctionalSimulator:
         if num_threads <= 0:
             raise ValueError("num_threads must be > 0.")
 
+        self.verbose = verbose
         self.num_banks = num_banks
         self.word_bytes = word_bytes
         self.word_mask = (1 << (8 * word_bytes)) - 1
@@ -424,7 +427,14 @@ class ShmemFunctionalSimulator:
         Advance the simulator by a single clock cycle.
         
         Executes all sub-components: DRAM events, SMEM arbiter, read/write controllers, and AXI ports.
+        When ``verbose`` is enabled, prints the full pipeline state before and
+        after the cycle, plus a list of completions.
         """
+        if self.verbose:
+            self._log_cycle_summary(phase="BEGIN")
+
+        prev_completions = len(self.completions)
+
         arbiter_banks_issued_this_cycle: Set[int] = set()
         banks_used_by_controllers_this_cycle: Set[int] = set()
 
@@ -433,6 +443,11 @@ class ShmemFunctionalSimulator:
         self._run_smem_write_controller(banks_used_by_controllers_this_cycle)
         self._run_smem_read_controller(banks_used_by_controllers_this_cycle)
         self._run_axi_write_port()
+
+        if self.verbose:
+            self._log_cycle_completions(prev_completions)
+            self._log_cycle_summary(phase="END")
+
         self.cycle += 1
         self.cycle_count = self.cycle
 
@@ -813,6 +828,164 @@ class ShmemFunctionalSimulator:
             )
         )
 
+    def _fmt_tagged(self, tagged: Dict[str, Any]) -> str:
+        """
+        Format a tagged transaction dict into a compact multi-field description.
+
+        Includes thread ID, txn ID, type, shmem address, absolute address,
+        TBO, bank/slot mapping, write data, dram address, and current bank
+        content (for reads).
+
+        Args:
+            tagged: The tagged transaction dictionary.
+
+        Returns:
+            A human-readable string with full per-thread request details.
+        """
+        txn: Transaction = tagged["txn"]
+        txn_id: int = tagged["txn_id"]
+        tid = int(txn.thread_id)
+        addr = int(txn.shmem_addr) if txn.shmem_addr is not None else 0
+        tbo = self._effective_thread_block_offset(txn)
+        absolute = self._absolute_smem_addr(txn)
+        bank, slot = self._address_crossbar(absolute, tbo)
+
+        line = (
+            f"T{tid:02d} #{txn_id} {txn.txn_type.value:<20s}"
+            f"  shmem=0x{addr:04x}  abs=0x{absolute:04x}  tbo=0x{tbo:04x}"
+            f"  -> bank {bank:2d}, slot {slot}"
+        )
+
+        if txn.txn_type == TxnType.SH_ST and txn.write_data is not None:
+            line += f"  | write_data=0x{int(txn.write_data) & self.word_mask:08x}"
+
+        if txn.txn_type == TxnType.SH_LD:
+            current = self.banks[bank].get(slot, 0)
+            line += f"  | bank_content=0x{current & self.word_mask:08x}"
+
+        if txn.dram_addr is not None:
+            line += f"  | dram_addr=0x{txn.dram_addr:04x}"
+            if txn.txn_type == TxnType.ASYNC_LD_DRAM_TO_SRAM:
+                dram_val = int(self.dram.get(txn.dram_addr, 0)) & self.word_mask
+                line += f"  dram_content=0x{dram_val:08x}"
+
+        return line
+
+    def _log_cycle_summary(self, phase: str = "BEGIN") -> None:
+        """
+        Print a formatted summary of every queue in the simulator, showing
+        the thread and request state for each entry.
+
+        Args:
+            phase: Label printed in the header (e.g. ``"BEGIN"`` or ``"END"``).
+        """
+        separator = "-" * 78
+        print(f"\n{separator}")
+        print(f"  CYCLE {self.cycle}  [{phase}]")
+        print(separator)
+
+        def _print_queue(
+            label: str, items: Iterable[Any], extractor: Any
+        ) -> None:
+            entries = list(items)
+            if not entries:
+                print(f"  {label}: (empty)")
+                return
+            print(f"  {label} ({len(entries)}):")
+            for item in entries:
+                tagged = extractor(item)
+                print(f"    {self._fmt_tagged(tagged)}")
+
+        _print_queue(
+            "Input Queue",
+            self.input_queue,
+            lambda t: t,
+        )
+        _print_queue(
+            "SMEM Read Queue",
+            self.smem_read_queue,
+            lambda t: t,
+        )
+        _print_queue(
+            "SMEM Write Queue",
+            self.smem_write_queue,
+            lambda t: t,
+        )
+        if self.memory_read_queue:
+            print(f"  Memory Read Queue ({len(self.memory_read_queue)}):")
+            for tagged, value in self.memory_read_queue:
+                print(
+                    f"    {self._fmt_tagged(tagged)}"
+                    f"  | fetched_data=0x{int(value) & self.word_mask:08x}"
+                )
+        else:
+            print("  Memory Read Queue: (empty)")
+
+        if self.memory_write_queue:
+            print(f"  Memory Write Queue ({len(self.memory_write_queue)}):")
+            for tagged, dram_addr, value in self.memory_write_queue:
+                print(
+                    f"    {self._fmt_tagged(tagged)}"
+                    f"  | dest_dram=0x{dram_addr:04x}"
+                    f"  payload=0x{int(value) & self.word_mask:08x}"
+                )
+        else:
+            print("  Memory Write Queue: (empty)")
+
+        if self.pending_dram_reads:
+            print(f"  Pending DRAM Reads ({len(self.pending_dram_reads)}):")
+            for ready_cycle, tagged, value in self.pending_dram_reads:
+                print(
+                    f"    {self._fmt_tagged(tagged)}"
+                    f"  | fetched_data=0x{int(value) & self.word_mask:08x}"
+                    f"  ready @cycle {ready_cycle}"
+                )
+        else:
+            print("  Pending DRAM Reads: (empty)")
+
+        if self.pending_dram_writes:
+            print(f"  Pending DRAM Writes ({len(self.pending_dram_writes)}):")
+            for ready_cycle, tagged, dram_addr, value in self.pending_dram_writes:
+                print(
+                    f"    {self._fmt_tagged(tagged)}"
+                    f"  | dest_dram=0x{dram_addr:04x}"
+                    f"  payload=0x{int(value) & self.word_mask:08x}"
+                    f"  ready @cycle {ready_cycle}"
+                )
+        else:
+            print("  Pending DRAM Writes: (empty)")
+
+        print(separator)
+
+    def _log_cycle_completions(self, prev_count: int) -> None:
+        """
+        Print transactions that completed during the current cycle, including
+        full address and data details for each thread.
+
+        Args:
+            prev_count: Length of ``self.completions`` before the cycle ran.
+        """
+        new_completions = self.completions[prev_count:]
+        if not new_completions:
+            print("  >> No completions this cycle.")
+            return
+        print(f"  >> Completed this cycle ({len(new_completions)}):")
+        for comp in new_completions:
+            shmem = comp.shmem_addr
+            abs_addr = comp.absolute_shmem_addr
+            tbo = comp.thread_block_offset_effective
+
+            line = (
+                f"    T{comp.thread_id:02d} #{comp.txn_id} {comp.txn_type:<20s}"
+                f"  shmem=0x{shmem:04x}  abs=0x{abs_addr:04x}  tbo=0x{tbo:04x}"
+                f"  (issued @{comp.cycle_issued}, completed @{comp.cycle_completed})"
+            )
+            if comp.read_data is not None:
+                line += f"  | read_data=0x{comp.read_data:08x}"
+            if comp.dram_addr is not None:
+                line += f"  | dram_addr=0x{comp.dram_addr:04x}"
+            print(line)
+
     def _validate_transaction(self, txn: Transaction) -> None:
         """
         Validate the parameters of a transaction before issuing it.
@@ -852,7 +1025,6 @@ class ShmemFunctionalSimulator:
         ) and txn.dram_addr is None:
             raise ValueError(f"{txn.txn_type.value} requires dram_addr.")
 
-    @staticmethod
     @staticmethod
     def _normalize_thread_offsets(
         *,
@@ -1416,206 +1588,281 @@ LockupFreeCacheStage = ShmemCompatibleCacheStage
 
 class SmemArbiter:
     """
-    SMEM Arbiter that breaks down requests, resolves bank conflicts by serializing
-    conflicting requests into different cycles, and feeds them to the simulator.
+    SMEM Arbiter -- the entry point to the shared memory subsystem.
+
+    Accepts a batch of transactions (e.g. one per thread in a warp), detects
+    bank conflicts via the simulator's XOR-mapped address crossbar, and
+    partitions conflicting requests into multiple conflict-free sub-batches.
+    Each sub-batch is issued to the simulator and separated by a ``step()``
+    call so that conflicting accesses are serialized across cycles.
     """
-    def __init__(self, simulator: ShmemFunctionalSimulator):
+
+    def __init__(self, simulator: ShmemFunctionalSimulator) -> None:
         """
         Initialize the SMEM Arbiter.
-        
+
         Args:
             simulator: The underlying shared memory functional simulator.
         """
         self.simulator = simulator
-        self.num_banks = simulator.num_banks
-        self.word_bytes = simulator.word_bytes
-
-    def _xor_map(self, absolute_smem_addr: int, thread_block_offset: int) -> int:
-        """
-        Compute the XOR-mapped word address to reduce bank conflicts.
-        
-        Args:
-            absolute_smem_addr: The absolute shared memory address.
-            thread_block_offset: The offset for the current thread block.
-            
-        Returns:
-            The XOR-mapped word address.
-        """
-        # Convert byte addresses to word addresses for banking logic
-        word_addr = absolute_smem_addr // self.word_bytes
-        offset_words = thread_block_offset // self.word_bytes
-        # XOR the word address with the offset to distribute accesses across banks and minimize conflicts
-        return word_addr ^ offset_words
-
-    def _address_crossbar(self, absolute_smem_addr: int, thread_block_offset: int) -> Tuple[int, int]:
-        """
-        Route an address through the crossbar to determine its bank and slot.
-        
-        Args:
-            absolute_smem_addr: The absolute shared memory address.
-            thread_block_offset: The offset for the current thread block.
-            
-        Returns:
-            A tuple of (bank_index, bank_slot).
-        """
-        absolute_word = absolute_smem_addr // self.word_bytes
-        mapped_word = self._xor_map(absolute_smem_addr, thread_block_offset)
-        bank = mapped_word % self.num_banks
-        bank_slot = absolute_word // self.num_banks
-        return bank, bank_slot
 
     def _get_bank(self, txn: Transaction) -> int:
         """
         Determine the target bank for a given transaction.
-        
+
+        Delegates to the simulator to avoid duplicating address-mapping logic.
+
         Args:
             txn: The transaction to evaluate.
-            
+
         Returns:
             The index of the target bank.
         """
-        absolute_addr = int(txn.shmem_addr) + self.simulator._effective_thread_block_offset(txn)
-        bank, _ = self._address_crossbar(absolute_addr, self.simulator._effective_thread_block_offset(txn))
-        return bank
+        return self.simulator._bank_for_transaction(txn)
 
-    def _log_thread_state(self, txn: Transaction, cycle: int, bank: int, bank_slot: int, absolute_addr: int) -> None:
+    def _get_bank_and_slot(self, txn: Transaction) -> Tuple[int, int]:
         """
-        Log the state of a thread\'s memory access for debugging.
-        
+        Determine the target bank and slot for a given transaction.
+
+        Args:
+            txn: The transaction to evaluate.
+
+        Returns:
+            A tuple of (bank_index, bank_slot).
+        """
+        absolute = self.simulator._absolute_smem_addr(txn)
+        offset = self.simulator._effective_thread_block_offset(txn)
+        return self.simulator._address_crossbar(absolute, offset)
+
+    def _log_thread_state(
+        self,
+        txn: Transaction,
+        cycle: int,
+        bank: int,
+        bank_slot: int,
+        absolute_addr: int,
+        sub_batch_idx: int,
+    ) -> None:
+        """
+        Log the state of a thread's memory access for debugging, including
+        all address fields and data payloads.
+
         Args:
             txn: The transaction being processed.
             cycle: The current cycle count.
             bank: The target bank index.
             bank_slot: The target bank slot.
             absolute_addr: The absolute memory address.
+            sub_batch_idx: The index of the sub-batch this transaction belongs to.
         """
-        print(f"[DEBUG] Cycle {cycle} | Thread {txn.thread_id:2d} | Addr 0x{txn.shmem_addr:04x} | "
-              f"AbsAddr 0x{absolute_addr:04x} | XOR Map -> Bank {bank:2d} | Slot {bank_slot:4d} | "
-              f"CLOS Network Input: Valid")
+        sim = self.simulator
+        tbo = sim._effective_thread_block_offset(txn)
+        line = (
+            f"[DEBUG] Sub-batch {sub_batch_idx} | Cycle {cycle} | "
+            f"Thread {txn.thread_id:2d} | {txn.txn_type.value:<20s} | "
+            f"Addr 0x{txn.shmem_addr:04x} | AbsAddr 0x{absolute_addr:04x} | "
+            f"TBO 0x{tbo:04x} | XOR Map -> Bank {bank:2d} | "
+            f"Slot {bank_slot:4d}"
+        )
 
-    def process_batch(self, transactions: List[Transaction]) -> None:
+        if txn.txn_type == TxnType.SH_ST and txn.write_data is not None:
+            line += f" | write_data=0x{int(txn.write_data) & sim.word_mask:08x}"
+        if txn.txn_type == TxnType.SH_LD:
+            current = sim.banks[bank].get(bank_slot, 0)
+            line += f" | bank_content=0x{current & sim.word_mask:08x}"
+        if txn.dram_addr is not None:
+            line += f" | dram_addr=0x{txn.dram_addr:04x}"
+
+        print(line)
+
+    def process_batch(self, transactions: List[Transaction]) -> Dict[str, Any]:
         """
-        Process a batch of transactions, resolving bank conflicts and issuing them.
-        
+        Partition a batch of transactions into conflict-free sub-batches and
+        issue them to the simulator, stepping between sub-batches.
+
+        The algorithm greedily fills each sub-batch with transactions whose
+        target banks have not yet been used in that sub-batch, up to the
+        simulator's ``arbiter_issue_width``.  Transactions that conflict are
+        deferred to the next sub-batch.
+
         Args:
             transactions: A list of transactions to process.
+
+        Returns:
+            A dict with partitioning metadata:
+              - ``num_sub_batches``: how many sub-batches were needed
+              - ``total_transactions``: total input count
+              - ``sub_batch_sizes``: list of per-sub-batch sizes
         """
-        print(f"\n[DEBUG] --- SmemArbiter Processing Batch of {len(transactions)} Transactions ---")
-        print("[DEBUG] Assuming input to the system does NOT have any bank conflicts.")
-        
-        # We use the same math as the XOR in order to calculate the outcome
-        banks_used = set()
-        
-        for txn in transactions:
-            absolute_addr = int(txn.shmem_addr) + self.simulator._effective_thread_block_offset(txn)
-            bank, bank_slot = self._address_crossbar(absolute_addr, self.simulator._effective_thread_block_offset(txn))
-            
-            if bank in banks_used:
-                print(f"[WARNING] Unexpected bank conflict detected on Bank {bank} for Thread {txn.thread_id}! "
-                      f"The system assumes no bank conflicts in the input.")
-            
-            banks_used.add(bank)
-            self._log_thread_state(txn, self.simulator.cycle, bank, bank_slot, absolute_addr)
-            self.simulator.issue(txn)
-            
+        issue_width = self.simulator.arbiter_issue_width
+
+        sub_batches: List[List[Transaction]] = []
+        remaining = list(transactions)
+
+        while remaining:
+            current_batch: List[Transaction] = []
+            banks_used: Set[int] = set()
+            deferred: List[Transaction] = []
+
+            for txn in remaining:
+                bank = self._get_bank(txn)
+                if bank not in banks_used and len(current_batch) < issue_width:
+                    current_batch.append(txn)
+                    banks_used.add(bank)
+                else:
+                    deferred.append(txn)
+
+            sub_batches.append(current_batch)
+            remaining = deferred
+
+        print(
+            f"\n[DEBUG] --- SmemArbiter Processing Batch of "
+            f"{len(transactions)} Transactions into "
+            f"{len(sub_batches)} sub-batch(es) ---"
+        )
+
+        for batch_idx, batch in enumerate(sub_batches):
+            for txn in batch:
+                absolute_addr = self.simulator._absolute_smem_addr(txn)
+                bank, bank_slot = self._get_bank_and_slot(txn)
+                self._log_thread_state(
+                    txn,
+                    self.simulator.cycle,
+                    bank,
+                    bank_slot,
+                    absolute_addr,
+                    batch_idx,
+                )
+                self.simulator.issue(txn)
+
+            if batch_idx < len(sub_batches) - 1:
+                self.simulator.step()
+
         print("[DEBUG] --- SmemArbiter Batch Processing Complete ---\n")
+
+        return {
+            'num_sub_batches': len(sub_batches),
+            'total_transactions': len(transactions),
+            'sub_batch_sizes': [len(b) for b in sub_batches],
+        }
 
 
 def test_32_threads_different_addresses() -> None:
     """
-    Test 32 threads accessing different addresses without bank conflicts.
+    Baseline: 32 threads accessing different addresses without bank conflicts.
+    All transactions should fit in a single sub-batch.
     """
     print("\n=== TEST: 32 Threads with Different Addresses (No Conflicts) ===")
-    sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
+    sim = ShmemFunctionalSimulator(
+        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
+    )
     arbiter = SmemArbiter(sim)
-    
-    txns = []
-    for i in range(32):
-        # Generate addresses that map to different banks using XOR math
-        # Bank = (word_addr ^ offset_words) % num_banks
-        # If offset_words = 0, Bank = word_addr % num_banks
-        # So word_addr = i will map to bank i
-        shmem_addr = i * 4
-        txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=shmem_addr, thread_id=i))
-        
-    arbiter.process_batch(txns)
+
+    txns = [
+        Transaction(txn_type=TxnType.SH_LD, shmem_addr=i * 4, thread_id=i)
+        for i in range(32)
+    ]
+
+    result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
-    print(f"Completed in {sim.cycle} cycles.")
+
+    assert result['num_sub_batches'] == 1, (
+        f"Expected 1 sub-batch, got {result['num_sub_batches']}"
+    )
+    print(f"Completed in {sim.cycle} cycles. Sub-batches: {result['num_sub_batches']}")
+
 
 def test_divergence() -> None:
     """
-    Test divergence scenario resolved by the arbiter.
+    Bank-conflict scenario: all 32 threads hit the same shmem_addr (bank 0).
+    The arbiter must serialize them into 32 sub-batches of 1 transaction each.
     """
-    print("\n=== TEST: Divergence (Resolved by Arbiter) ===")
-    sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
+    print("\n=== TEST: Divergence -- All Threads Hit Same Bank ===")
+    sim = ShmemFunctionalSimulator(
+        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
+    )
     arbiter = SmemArbiter(sim)
-    
-    txns = []
-    # To avoid bank conflicts in the input to the system, we simulate the future arbiter
-    # by generating requests that are already spread across banks.
-    # Instead of all threads hitting bank 0, we generate addresses that map to unique banks.
-    for i in range(32):
-        shmem_addr = i * 4
-        txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=shmem_addr, thread_id=i))
-        
-    arbiter.process_batch(txns)
+
+    txns = [
+        Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x00, thread_id=i)
+        for i in range(32)
+    ]
+
+    result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
-    print(f"Completed in {sim.cycle} cycles.")
+
+    assert result['num_sub_batches'] == 32, (
+        f"Expected 32 sub-batches (one per conflicting txn), got {result['num_sub_batches']}"
+    )
+    print(
+        f"Completed in {sim.cycle} cycles. "
+        f"Sub-batches: {result['num_sub_batches']} (sizes: {result['sub_batch_sizes']})"
+    )
+
 
 def test_integration_smem_arbiter() -> None:
     """
-    Test integration of the SMEM Arbiter with the functional simulator.
+    Integration test with deliberate bank conflicts among stores.
+    Threads 0 and 2 both target shmem_addr 0x10 (same bank), so they must be
+    split across two sub-batches.
     """
-    print("\n=== TEST: Integration with SMEM Arbiter ===")
-    sim = ShmemFunctionalSimulator(num_threads=4, num_banks=32)
+    print("\n=== TEST: Integration with SMEM Arbiter (Bank Conflicts in Stores) ===")
+    sim = ShmemFunctionalSimulator(
+        num_threads=4, num_banks=32, arbiter_issue_width=4, verbose=True,
+    )
     arbiter = SmemArbiter(sim)
-    
+
     txns = [
-        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x10, write_data=0xAA, thread_id=0), # Bank 4
-        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x14, write_data=0xBB, thread_id=1), # Bank 5
-        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x18, write_data=0xCC, thread_id=2), # Bank 6 (Changed from 0x10 to avoid conflict)
-        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x1C, write_data=0xDD, thread_id=3), # Bank 7
+        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x10, write_data=0xAA, thread_id=0),
+        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x14, write_data=0xBB, thread_id=1),
+        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x10, write_data=0xCC, thread_id=2),
+        Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x1C, write_data=0xDD, thread_id=3),
     ]
-    
-    arbiter.process_batch(txns)
+
+    result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
-    print(f"Completed in {sim.cycle} cycles.")
+
+    assert result['num_sub_batches'] == 2, (
+        f"Expected 2 sub-batches due to bank conflict, got {result['num_sub_batches']}"
+    )
+    print(
+        f"Completed in {sim.cycle} cycles. "
+        f"Sub-batches: {result['num_sub_batches']} (sizes: {result['sub_batch_sizes']})"
+    )
+
 
 def test_multicast_divergence() -> None:
     """
-    Test multicast divergence scenarios (16-wide and 32-wide).
+    Multi-way bank conflict: half the threads hit bank 0, half hit bank 1.
+    With issue_width=32, each sub-batch can service at most 1 from each bank
+    group, so we expect 16 sub-batches.
     """
-    print("\n=== TEST: Multicast Divergence (32-wide and 16-wide) ===")
-    sim = ShmemFunctionalSimulator(num_threads=32, num_banks=32)
+    print("\n=== TEST: Multicast Divergence (2-bank, 16-way conflict) ===")
+    sim = ShmemFunctionalSimulator(
+        num_threads=32, num_banks=32, arbiter_issue_width=32, verbose=True,
+    )
     arbiter = SmemArbiter(sim)
-    
-    # 16-wide divergence: We simulate the arbiter having resolved the conflicts
-    # by assigning them to unique banks.
-    txns_16 = []
-    for i in range(32):
-        # Map to unique banks to avoid conflicts
-        addr = i * 4
-        txns_16.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=addr, thread_id=i))
-        
-    print("\n--- 16-wide divergence (Resolved) ---")
-    arbiter.process_batch(txns_16)
+
+    txns: List[Transaction] = []
+    for i in range(16):
+        txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x00, thread_id=i))
+    for i in range(16, 32):
+        txns.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x04, thread_id=i))
+
+    result = arbiter.process_batch(txns)
     while sim._has_pending_work():
         sim.step()
-        
-    # 32-wide divergence: Simulated as resolved
-    txns_32 = []
-    for i in range(32):
-        addr = i * 4
-        txns_32.append(Transaction(txn_type=TxnType.SH_LD, shmem_addr=addr, thread_id=i))
-        
-    print("\n--- 32-wide divergence (Resolved) ---")
-    arbiter.process_batch(txns_32)
-    while sim._has_pending_work():
-        sim.step()
-    print("Multicast tests completed.")
+
+    assert result['num_sub_batches'] == 16, (
+        f"Expected 16 sub-batches (16 conflicts per bank), got {result['num_sub_batches']}"
+    )
+    print(
+        f"Completed in {sim.cycle} cycles. "
+        f"Sub-batches: {result['num_sub_batches']} (sizes: {result['sub_batch_sizes']})"
+    )
 
 if __name__ == "__main__":
     # Redirect extended traceback and debug output to output_extended.txt
