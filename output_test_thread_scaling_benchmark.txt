@@ -1,23 +1,10 @@
-SMEM vs DCache Thread Scaling Benchmark
-=======================================
 
-Configuration
--------------
-- Threads swept from 1 to 32
-- Synthetic miss latency used in this benchmark: 1 cycles
-- Balanced runs spread requests across banks as evenly as possible
-- Conflict runs force requests onto one bank
-- DCache has 32 banks; SMEM has 32 banks
+================================================================================
+== test_thread_scaling_benchmark.py  (2026-04-17T17:18:13)
+================================================================================
 
 Mixed Hit/Miss
 --------------
-Each thread mixes hot read/write hits with two cold fetches and later reuses so every scenario includes both hits and misses.
-
-32-thread summary
------------------
-- Balanced: DCache = 359 cycles, SMEM = 194 cycles
-- Same-bank conflict: DCache = 798 cycles, SMEM = 290 cycles
-
 Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
 -------------------------------------------------
   1 |      50 |        8 |      54 |        11
@@ -55,13 +42,6 @@ Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
 
 SAXPY-Like Stream
 -----------------
-Approximate SAXPY memory behavior over two elements per thread: fetch x[i] and y[i], update y[i], then read back y[i].
-
-32-thread summary
------------------
-- Balanced: DCache = 772 cycles, SMEM = 294 cycles
-- Same-bank conflict: DCache = 1216 cycles, SMEM = 387 cycles
-
 Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
 -------------------------------------------------
   1 |      62 |       14 |      68 |        15
@@ -97,5 +77,6 @@ Thr |  D$ Bal | SMEM Bal | D$ Conf | SMEM Conf
  31 |     748 |      286 |    1176 |       375
  32 |     772 |      294 |    1216 |       387
 
-CSV: thread_scaling_benchmark.csv
-Plot: results.jpg
+Report saved to: C:\Users\amriz\Desktop\School\VIP\SMEM-SIM\results.txt
+CSV saved to:  C:\Users\amriz\Desktop\School\VIP\SMEM-SIM\thread_scaling_benchmark.csv
+Plot saved to: C:\Users\amriz\Desktop\School\VIP\SMEM-SIM\results.jpg

@@ -112,21 +112,21 @@ class TestSmemInstructionCoverage(unittest.TestCase):
         self.assertEqual(out["completions"][1]["txn_type"], "sh.ld")
         self.assertEqual(out["completions"][1]["read_data"], 0xABCD1234)
 
-    def test_async_ld_dram_to_sram_then_load(self):
+    def test_global_ld_dram_to_sram_then_load(self):
         out = run_smem_functional_sim(
             [
-                {"type": "async.ld.dram2sram", "dram_addr": 0x2000, "shmem_addr": 0x24},
+                {"type": "global.ld.dram2sram", "dram_addr": 0x2000, "shmem_addr": 0x24},
                 {"type": "sh.ld", "shmem_addr": 0x24},
             ],
             dram_init={0x2000: 0x0BADC0DE},
         )
         self.assertEqual(out["completions"][1]["read_data"], 0x0BADC0DE)
 
-    def test_async_st_smem_to_dram(self):
+    def test_global_st_smem_to_dram(self):
         out = run_smem_functional_sim(
             [
                 {"type": "sh.st", "shmem_addr": 0x30, "write_data": 0xFEEDFACE},
-                {"type": "async.st.smem2dram", "shmem_addr": 0x30, "dram_addr": 0x5000},
+                {"type": "global.st.smem2dram", "shmem_addr": 0x30, "dram_addr": 0x5000},
             ]
         )
         self.assertEqual(out["dram"][0x5000], 0xFEEDFACE)
@@ -135,8 +135,8 @@ class TestSmemInstructionCoverage(unittest.TestCase):
         txns = [
             {"type": "sh.st", "thread_id": 0, "shmem_addr": 0x10, "write_data": 0x11111111},
             {"type": "sh.ld", "thread_id": 0, "shmem_addr": 0x10},
-            {"type": "async.st.smem2dram", "thread_id": 0, "shmem_addr": 0x10, "dram_addr": 0x8000},
-            {"type": "async.ld.dram2sram", "thread_id": 1, "dram_addr": 0x8000, "shmem_addr": 0x10},
+            {"type": "global.st.smem2dram", "thread_id": 0, "shmem_addr": 0x10, "dram_addr": 0x8000},
+            {"type": "global.ld.dram2sram", "thread_id": 1, "dram_addr": 0x8000, "shmem_addr": 0x10},
             {"type": "sh.ld", "thread_id": 1, "shmem_addr": 0x10},
         ]
         out = run_smem_functional_sim(
@@ -282,8 +282,8 @@ class TestCycleComparisonVsDCache(unittest.TestCase):
         requests = [
             {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0x7777},
             {"type": "sh.ld", "shmem_addr": 0x20},
-            {"type": "async.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1110},
-            {"type": "async.ld.dram2sram", "dram_addr": 0x1110, "shmem_addr": 0x24},
+            {"type": "global.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1110},
+            {"type": "global.ld.dram2sram", "dram_addr": 0x1110, "shmem_addr": 0x24},
         ]
 
         response_types = []
@@ -364,4 +364,7 @@ class TestCycleComparisonVsDCache(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    from test_output import capture_to_test_log
+
+    with capture_to_test_log(__file__):
+        unittest.main(verbosity=2, exit=False)

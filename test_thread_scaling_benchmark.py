@@ -509,7 +509,7 @@ def _build_mixed_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
         )
         phases[1].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=cold_a_dram,
                 shmem_addr=cold_a_addr,
                 thread_id=tid,
@@ -528,7 +528,7 @@ def _build_mixed_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
         )
         phases[2].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=cold_b_dram,
                 shmem_addr=cold_b_addr,
                 thread_id=tid,
@@ -635,7 +635,7 @@ def _build_saxpy_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
 
         phases[0].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=x0_dram,
                 shmem_addr=x0_addr,
                 thread_id=tid,
@@ -643,7 +643,7 @@ def _build_saxpy_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
         )
         phases[1].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=y0_dram,
                 shmem_addr=y0_addr,
                 thread_id=tid,
@@ -676,7 +676,7 @@ def _build_saxpy_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
         )
         phases[2].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=x1_dram,
                 shmem_addr=x1_addr,
                 thread_id=tid,
@@ -684,7 +684,7 @@ def _build_saxpy_smem(num_threads: int, same_bank_conflict: bool) -> SmemScenari
         )
         phases[2].append(
             Transaction(
-                txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
+                txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 dram_addr=y1_dram,
                 shmem_addr=y1_addr,
                 thread_id=tid,
@@ -975,4 +975,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from test_output import capture_to_test_log
+
+    with capture_to_test_log(__file__):
+        main()

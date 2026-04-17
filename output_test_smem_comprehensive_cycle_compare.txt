@@ -1,0 +1,26 @@
+
+================================================================================
+== test_smem_comprehensive_cycle_compare.py  (2026-04-17T17:18:12)
+================================================================================
+
+test_compat_response_has_attribute_access (__main__.TestCycleComparisonVsDCache.test_compat_response_has_attribute_access) ... ok
+test_compat_stage_handles_all_smem_transaction_types (__main__.TestCycleComparisonVsDCache.test_compat_stage_handles_all_smem_transaction_types) ... ok
+test_dict_generic_type_with_rw_mode_falls_back_cleanly (__main__.TestCycleComparisonVsDCache.test_dict_generic_type_with_rw_mode_falls_back_cleanly) ... ok
+test_dict_rw_mode_write_maps_to_store (__main__.TestCycleComparisonVsDCache.test_dict_rw_mode_write_maps_to_store) ... ok
+test_read_hit_cycle_compare (__main__.TestCycleComparisonVsDCache.test_read_hit_cycle_compare) ... Cache: Received new request: dCacheRequest(addr_val=0x20, rw_mode='read', size='word', store_value=None, halt=False)
+ok
+test_write_hit_cycle_compare (__main__.TestCycleComparisonVsDCache.test_write_hit_cycle_compare) ... Cache: Received new request: dCacheRequest(addr_val=0x24, rw_mode='write', size='word', store_value=2712847316, halt=False)
+ok
+test_load_config_and_apply_to_run (__main__.TestSmemConfig.test_load_config_and_apply_to_run) ... ok
+test_all_instruction_types_in_one_sequence (__main__.TestSmemInstructionCoverage.test_all_instruction_types_in_one_sequence) ... ok
+test_global_ld_dram_to_sram_then_load (__main__.TestSmemInstructionCoverage.test_global_ld_dram_to_sram_then_load) ... ok
+test_global_st_smem_to_dram (__main__.TestSmemInstructionCoverage.test_global_st_smem_to_dram) ... ok
+test_sh_ld_from_uninitialized_returns_zero (__main__.TestSmemInstructionCoverage.test_sh_ld_from_uninitialized_returns_zero) ... ok
+test_sh_st_then_sh_ld_round_trip (__main__.TestSmemInstructionCoverage.test_sh_st_then_sh_ld_round_trip) ... ok
+test_single_transaction_api_uses_config (__main__.TestSmemInstructionCoverage.test_single_transaction_api_uses_config) ... ok
+test_single_transaction_thread_id_expands_offsets_if_needed (__main__.TestSmemInstructionCoverage.test_single_transaction_thread_id_expands_offsets_if_needed) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.020s
+
+OK

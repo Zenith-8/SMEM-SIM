@@ -22,8 +22,31 @@ from clos_network_sim import (
     ERR_GOOD, ERR_ACCESS, ERR_UNMAPPED,
 )
 
-PASS = "\033[92mPASS\033[0m"
-FAIL = "\033[91mFAIL\033[0m"
+_PASS_ANSI = "\033[92mPASS\033[0m"
+_FAIL_ANSI = "\033[91mFAIL\033[0m"
+
+
+def _use_ansi_color() -> bool:
+    """
+    Enable ANSI color only when stdout is an interactive terminal.
+
+    This is evaluated at every print call (not at module import) so that
+    the ``capture_to_test_log`` context manager -- which replaces
+    ``sys.stdout`` with a regular file handle after import -- produces a
+    clean log without raw escape sequences. Interactive runs still get
+    colored output.
+    """
+    return bool(getattr(sys.stdout, "isatty", lambda: False)())
+
+
+def pass_label() -> str:
+    """Return the PASS marker, colored when stdout is a real terminal."""
+    return _PASS_ANSI if _use_ansi_color() else "PASS"
+
+
+def fail_label() -> str:
+    """Return the FAIL marker, colored when stdout is a real terminal."""
+    return _FAIL_ANSI if _use_ansi_color() else "FAIL"
 
 failures = []
 
@@ -31,7 +54,7 @@ failures = []
 def check(cond, msg):
     if not cond:
         failures.append(msg)
-        print(f"  {FAIL}: {msg}")
+        print(f"  {fail_label()}: {msg}")
         return False
     return True
 
@@ -89,9 +112,9 @@ def test_A_unicast_all():
                 msg = (f"bank{bank_id}->thread{thread_id}: "
                        f"rxs={rxs}, stray={stray}, expected data=0x{data_val:04X}")
                 failures.append(msg)
-                print(f"  {FAIL}: {msg}")
+                print(f"  {fail_label()}: {msg}")
 
-    status = PASS if fail_count == 0 else FAIL
+    status = pass_label() if fail_count == 0 else fail_label()
     print(f"  {status}: {pass_count}/1024 unicast combinations passed")
 
 
@@ -142,7 +165,7 @@ def test_B_multicast():
             ok = False
             failures.append(f"multicast '{name}': stray deliveries to {list(stray.keys())}")
 
-        status = PASS if ok else FAIL
+        status = pass_label() if ok else fail_label()
         print(f"  {status}: bank{bank_id} -> [{len(dest_threads)} threads] — {name}")
 
 
@@ -215,7 +238,7 @@ def test_B2_multicast_proof_by_decomposition():
             else:
                 part_a_fail += 1
 
-    status_a = PASS if part_a_fail == 0 else FAIL
+    status_a = pass_label() if part_a_fail == 0 else fail_label()
     print(f"  {status_a} (a) per-group: {part_a_pass}/120 passed")
 
     # ------------------------------------------------------------------
@@ -262,7 +285,7 @@ def test_B2_multicast_proof_by_decomposition():
         else:
             part_b_fail += 1
 
-    status_b = PASS if part_b_fail == 0 else FAIL
+    status_b = pass_label() if part_b_fail == 0 else fail_label()
     print(f"  {status_b} (b) cross-group: {part_b_pass}/256 passed")
     print()
     print("  By decomposition: if (a) and (b) both pass, ALL 2^32 destination")
@@ -300,9 +323,9 @@ def test_C_broadcast():
                 if not rxs or rxs[0][0] != data_val:
                     msg = f"broadcast bank{bank_id}: thread {t} got {rxs}, expected 0x{data_val:08X}"
                     failures.append(msg)
-                    print(f"  {FAIL}: {msg}")
+                    print(f"  {fail_label()}: {msg}")
 
-    status = PASS if fail_count == 0 else FAIL
+    status = pass_label() if fail_count == 0 else fail_label()
     print(f"  {status}: {pass_count}/32 banks broadcast to all 32 threads correctly")
 
 
@@ -334,7 +357,7 @@ def test_D_errors():
         stray = {t: v for t, v in deliveries.items() if t != thread_id}
         ok   &= (len(stray) == 0)
 
-        status = PASS if ok else FAIL
+        status = pass_label() if ok else fail_label()
         if not ok:
             failures.append(f"error test '{name}': rxs={rxs}, stray={stray}")
         print(f"  {status}: {name}")
@@ -390,7 +413,7 @@ def test_E_mshr_merge():
             failures.append(f"MSHR merge bank{bank_id} addr=0x{addr:04X} "
                             f"threads {ta},{tb}: ok_a={ok_a}, ok_b={ok_b}, stray={stray}")
 
-        status = PASS if ok else FAIL
+        status = pass_label() if ok else fail_label()
         print(f"  {status}: bank{bank_id} addr=0x{addr:04X}, "
               f"threads {ta} and {tb} both received 0x{data_val:08X}")
 
@@ -399,23 +422,30 @@ def test_E_mshr_merge():
 # Main
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    print("=" * 60)
-    print("Clos Network — Exhaustive Functional Test Suite")
-    print("=" * 60)
+    from test_output import capture_to_test_log
 
-    test_A_unicast_all()
-    test_B_multicast()
-    test_B2_multicast_proof_by_decomposition()
-    test_C_broadcast()
-    test_D_errors()
-    test_E_mshr_merge()
+    with capture_to_test_log(__file__):
+        print("=" * 60)
+        print("Clos Network — Exhaustive Functional Test Suite")
+        print("=" * 60)
 
-    print("\n" + "=" * 60)
-    if failures:
-        print(f"RESULT: {len(failures)} FAILURE(S)")
-        for f in failures:
-            print(f"  - {f}")
-        sys.exit(1)
-    else:
-        print("RESULT: ALL TESTS PASSED")
-    print("=" * 60)
+        test_A_unicast_all()
+        test_B_multicast()
+        test_B2_multicast_proof_by_decomposition()
+        test_C_broadcast()
+        test_D_errors()
+        test_E_mshr_merge()
+
+        print("\n" + "=" * 60)
+        if failures:
+            print(f"RESULT: {len(failures)} FAILURE(S)")
+            for f in failures:
+                print(f"  - {f}")
+            exit_code = 1
+        else:
+            print("RESULT: ALL TESTS PASSED")
+            exit_code = 0
+        print("=" * 60)
+
+    if exit_code:
+        sys.exit(exit_code)

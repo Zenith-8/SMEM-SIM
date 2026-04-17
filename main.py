@@ -20,8 +20,8 @@ class TxnType(str, Enum):
     """
     SH_LD = "sh.ld"
     SH_ST = "sh.st"
-    ASYNC_LD_DRAM_TO_SRAM = "async.ld.dram2sram"
-    ASYNC_ST_SMEM_TO_DRAM = "async.st.smem2dram"
+    GLOBAL_LD_DRAM_TO_SRAM = "global.ld.dram2sram"
+    GLOBAL_ST_SMEM_TO_DRAM = "global.st.smem2dram"
 
     @classmethod
     def from_user_value(cls, raw_value: str) -> "TxnType":
@@ -44,11 +44,12 @@ class TxnType(str, Enum):
         aliases = {
             "shld": cls.SH_LD,
             "shst": cls.SH_ST,
-            "asynclddram2sram": cls.ASYNC_LD_DRAM_TO_SRAM,
-            "asyncloaddramtosram": cls.ASYNC_LD_DRAM_TO_SRAM,
-            "cpasync": cls.ASYNC_LD_DRAM_TO_SRAM,
-            "asyncstsmem2dram": cls.ASYNC_ST_SMEM_TO_DRAM,
-            "asyncstoreshmemtodram": cls.ASYNC_ST_SMEM_TO_DRAM,
+            "globallddram2sram": cls.GLOBAL_LD_DRAM_TO_SRAM,
+            "globalloaddramtosram": cls.GLOBAL_LD_DRAM_TO_SRAM,
+            "ldglobal": cls.GLOBAL_LD_DRAM_TO_SRAM,
+            "globalstsmem2dram": cls.GLOBAL_ST_SMEM_TO_DRAM,
+            "globalstoreshmemtodram": cls.GLOBAL_ST_SMEM_TO_DRAM,
+            "stglobal": cls.GLOBAL_ST_SMEM_TO_DRAM,
         }
         if key not in aliases:
             supported = ", ".join(t.value for t in cls)
@@ -344,8 +345,26 @@ class ShmemFunctionalSimulator:
         self.input_queue: Deque[Dict[str, Any]] = deque()
         self.smem_read_queue: Deque[Dict[str, Any]] = deque()
         self.smem_write_queue: Deque[Dict[str, Any]] = deque()
-        self.memory_read_queue: Deque[Tuple[Dict[str, Any], int]] = deque()
-        self.memory_write_queue: Deque[Tuple[Dict[str, Any], int, int]] = deque()
+        # Unified AXI bus queue.
+        #
+        # A real AXI bus is a single shared resource between the DRAM read-response
+        # path and the DRAM write-issue path; at any given time only one "blocking
+        # set" (all reads or all writes) can occupy it, so the previously-separate
+        # ``memory_read_queue`` and ``memory_write_queue`` have been merged into
+        # one FIFO with kind-tagged entries:
+        #
+        #   ("read_resp", tagged, value)
+        #       An AXI read response that completed DRAM latency and now needs
+        #       to deposit ``value`` into the destination SMEM bank/slot.
+        #
+        #   ("write_req", tagged, dram_addr, value)
+        #       A value that was read out of SMEM and is waiting to be issued
+        #       to DRAM via the AXI write port.
+        #
+        # The ``_run_axi_bus`` step services at most ONE head entry per cycle,
+        # modeling the single-port nature of the AXI bus and serializing the
+        # two directions against each other.
+        self.axi_bus_queue: Deque[Tuple[Any, ...]] = deque()
 
         self.pending_dram_reads: List[Tuple[int, Dict[str, Any], int]] = []
         self.pending_dram_writes: List[Tuple[int, Dict[str, Any], int, int]] = []
@@ -441,8 +460,24 @@ class ShmemFunctionalSimulator:
         self._service_dram_events()
         self._run_shared_memory_arbiter(arbiter_banks_issued_this_cycle)
         self._run_smem_write_controller(banks_used_by_controllers_this_cycle)
+        # The AXI bus is driven in two phases per cycle, both acting on the
+        # same unified ``axi_bus_queue``:
+        #
+        #   Phase 1 (read-response): runs BEFORE the SMEM read controller so
+        #     a DRAM read response at the queue head is deposited into SMEM
+        #     in the same cycle the read controller observes the bank.
+        #
+        #   Phase 2 (write-request): runs AFTER the SMEM read controller so
+        #     a ``global.st`` just enqueued by the read controller is issued
+        #     to DRAM in the same cycle (matching the old timing where the
+        #     dedicated AXI write port ran last).
+        #
+        # Each phase consumes at most ONE matching head entry; the queue
+        # stays strict-FIFO. This preserves the old parallel-channel AXI
+        # throughput while unifying the two directions into a single queue.
+        self._run_axi_bus_read_phase(banks_used_by_controllers_this_cycle)
         self._run_smem_read_controller(banks_used_by_controllers_this_cycle)
-        self._run_axi_write_port()
+        self._run_axi_bus_write_phase()
 
         if self.verbose:
             self._log_cycle_completions(prev_completions)
@@ -479,10 +514,25 @@ class ShmemFunctionalSimulator:
     def _run_shared_memory_arbiter(self, banks_issued_this_cycle: Set[int]) -> None:
         """
         Execute the shared memory arbiter logic for the current cycle.
-        
-        Routes transactions from the input queue to the appropriate read or write queues,
-        respecting the arbiter issue width and avoiding bank conflicts.
-        
+
+        Warp-synchronous bank-parallel issue model:
+
+        * The arbiter scans the entire ``input_queue`` from head to tail.
+        * Each cycle it issues at most one request per distinct bank (so up
+          to ``num_banks`` requests in parallel when ``arbiter_issue_width``
+          is >= num_banks), modeling the per-bank output ports.
+        * When a request at position *k* targets a bank that has already
+          been issued to this cycle, the request is *deferred* (left in the
+          queue in its original order) instead of breaking the scan. This
+          matches how a real hardware arbiter serializes bank conflicts
+          across cycles without blocking unrelated lanes.
+        * ``arbiter_issue_width`` still caps the total number of parallel
+          issues per cycle (useful for modeling narrower arbiter hardware).
+
+        Relative order within each bank is preserved, which is what
+        downstream order-sensitive logic (e.g. read-after-write to the same
+        SMEM slot) relies on.
+
         Args:
             banks_issued_this_cycle: Set of bank indices already issued to in this cycle.
         """
@@ -490,24 +540,32 @@ class ShmemFunctionalSimulator:
             return
 
         issued_count = 0
+        deferred: Deque[Dict[str, Any]] = deque()
 
-        while issued_count < self.arbiter_issue_width and self.input_queue:
-            tagged = self.input_queue[0]
+        while self.input_queue:
+            tagged = self.input_queue.popleft()
             txn: Transaction = tagged["txn"]
             bank = self._bank_for_transaction(txn)
 
+            if issued_count >= self.arbiter_issue_width:
+                # Arbiter saturated this cycle; keep the rest in FIFO order.
+                deferred.append(tagged)
+                continue
+
             if bank in banks_issued_this_cycle:
+                # Bank already claimed by an earlier-lane request this cycle.
+                # Defer this lane to a later cycle but keep scanning the tail
+                # for requests to still-free banks.
                 tagged["trace"].append(
                     f"cycle {self.cycle}: arbiter stall on bank conflict (bank {bank})"
                 )
-                # Preserve strict issue order: do not skip this transaction.
-                break
+                deferred.append(tagged)
+                continue
 
-            self.input_queue.popleft()
             banks_issued_this_cycle.add(bank)
             issued_count += 1
 
-            if txn.txn_type in (TxnType.SH_LD, TxnType.ASYNC_ST_SMEM_TO_DRAM):
+            if txn.txn_type in (TxnType.SH_LD, TxnType.GLOBAL_ST_SMEM_TO_DRAM):
                 self.smem_read_queue.append(tagged)
                 tagged["trace"].append(f"cycle {self.cycle}: arbiter -> SMEM Read Queue")
             else:
@@ -516,11 +574,15 @@ class ShmemFunctionalSimulator:
                     f"cycle {self.cycle}: arbiter -> SMEM Write Queue"
                 )
 
+        # Restore deferred requests to the head of the input queue for next
+        # cycle, preserving their original relative order.
+        self.input_queue = deferred
+
     def _run_smem_read_controller(self, banks_used_this_cycle: Set[int]) -> None:
         """
         Execute the SMEM read controller logic for the current cycle.
         
-        Processes read requests and async store requests from the read queue.
+        Processes read requests and global store requests from the read queue.
         
         Args:
             banks_used_this_cycle: Set of bank indices already accessed in this cycle.
@@ -557,12 +619,14 @@ class ShmemFunctionalSimulator:
             )
             return
 
-        if txn.txn_type == TxnType.ASYNC_ST_SMEM_TO_DRAM:
-            # Read the value from SMEM and forward it to the memory write queue for DRAM storage
+        if txn.txn_type == TxnType.GLOBAL_ST_SMEM_TO_DRAM:
+            # Read the value from SMEM and enqueue an AXI write on the unified AXI bus.
             value = self.banks[bank].get(bank_slot, 0)
-            self.memory_write_queue.append((tagged, txn.dram_addr, value))
+            self.axi_bus_queue.append(
+                ("write_req", tagged, txn.dram_addr, value)
+            )
             tagged["trace"].append(
-                f"cycle {self.cycle}: SMEM Read Controller -> Memory Write Queue"
+                f"cycle {self.cycle}: SMEM Read Controller -> AXI Bus Queue (write_req)"
             )
             return
 
@@ -571,37 +635,15 @@ class ShmemFunctionalSimulator:
     def _run_smem_write_controller(self, banks_used_this_cycle: Set[int]) -> None:
         """
         Execute the SMEM write controller logic for the current cycle.
-        
-        Processes memory read responses (from DRAM) and standard store requests.
-        
+
+        Processes standard store requests (``sh.st``) and global-load issue
+        (``global.ld.dram2sram``) from the SMEM write queue. AXI read responses
+        that deposit data back into SMEM are now handled by the unified AXI
+        bus (see ``_run_axi_bus``).
+
         Args:
             banks_used_this_cycle: Set of bank indices already accessed in this cycle.
         """
-        if self.memory_read_queue:
-            tagged, value = self.memory_read_queue[0]
-            txn: Transaction = tagged["txn"]
-            absolute = self._absolute_smem_addr(txn)
-            bank, bank_slot = self._address_crossbar(
-                absolute, self._effective_thread_block_offset(txn)
-            )
-
-            if bank in banks_used_this_cycle:
-                tagged["trace"].append(
-                    f"cycle {self.cycle}: SMEM Write Controller stall (bank {bank} busy)"
-                )
-                return
-
-            self.memory_read_queue.popleft()
-            banks_used_this_cycle.add(bank)
-            self.banks[bank][bank_slot] = value
-            self.sram_linear[absolute] = value
-            tagged["trace"].append(
-                f"cycle {self.cycle}: Memory Read Queue -> SMEM Write Controller -> "
-                f"bank {bank}, slot {bank_slot}"
-            )
-            self._complete(tagged)
-            return
-
         if not self.smem_write_queue:
             return
 
@@ -633,7 +675,7 @@ class ShmemFunctionalSimulator:
             self._complete(tagged, read_data=prior_value)
             return
 
-        if txn.txn_type == TxnType.ASYNC_LD_DRAM_TO_SRAM:
+        if txn.txn_type == TxnType.GLOBAL_LD_DRAM_TO_SRAM:
             self.smem_write_queue.popleft()
             # Simulate an AXI read by fetching data from DRAM and scheduling its arrival based on latency
             dram_data = int(self.dram.get(txn.dram_addr, 0)) & self.word_mask
@@ -647,32 +689,96 @@ class ShmemFunctionalSimulator:
 
         raise RuntimeError(f"Unexpected write-controller transaction: {txn.txn_type}")
 
-    def _run_axi_write_port(self) -> None:
+    def _run_axi_bus_read_phase(self, banks_used_this_cycle: Set[int]) -> None:
         """
-        Execute the AXI write port logic for the current cycle.
-        
-        Issues pending memory writes to DRAM with the configured latency.
+        AXI bus -- read-response phase.
+
+        If the head of ``axi_bus_queue`` is a ``read_resp`` entry, deposit
+        its payload into the destination SMEM bank/slot (subject to
+        bank-busy arbitration) and complete the transaction. If the head
+        is a ``write_req`` (or the queue is empty), this phase is a no-op
+        and the write_req will be handled by ``_run_axi_bus_write_phase``
+        at the end of the cycle.
+
+        Strict FIFO semantics are preserved: at most ONE entry is consumed
+        per cycle by this phase, and only if that entry is at the head.
+
+        Args:
+            banks_used_this_cycle: Set of bank indices already accessed in this cycle.
         """
-        if not self.memory_write_queue:
+        if not self.axi_bus_queue:
             return
 
-        tagged, dram_addr, value = self.memory_write_queue.popleft()
+        head = self.axi_bus_queue[0]
+        if head[0] != "read_resp":
+            return
+
+        _, tagged, value = head
+        txn: Transaction = tagged["txn"]
+        absolute = self._absolute_smem_addr(txn)
+        bank, bank_slot = self._address_crossbar(
+            absolute, self._effective_thread_block_offset(txn)
+        )
+
+        if bank in banks_used_this_cycle:
+            tagged["trace"].append(
+                f"cycle {self.cycle}: AXI Bus (read phase) stall (bank {bank} busy)"
+            )
+            return
+
+        self.axi_bus_queue.popleft()
+        banks_used_this_cycle.add(bank)
+        self.banks[bank][bank_slot] = value
+        self.sram_linear[absolute] = value
+        tagged["trace"].append(
+            f"cycle {self.cycle}: AXI Bus Queue -> SMEM bank {bank}, slot {bank_slot}"
+        )
+        self._complete(tagged)
+
+    def _run_axi_bus_write_phase(self) -> None:
+        """
+        AXI bus -- write-request phase.
+
+        If the head of ``axi_bus_queue`` is a ``write_req`` entry, issue the
+        AXI write toward DRAM by scheduling it in ``pending_dram_writes``
+        with the configured DRAM latency. If the head is a ``read_resp`` that
+        hasn't been serviced this cycle (e.g. because of a bank conflict),
+        that read_resp blocks any trailing write_req -- this preserves the
+        "single AXI bus, strict FIFO" contract.
+
+        At most ONE entry is consumed per cycle by this phase.
+        """
+        if not self.axi_bus_queue:
+            return
+
+        head = self.axi_bus_queue[0]
+        if head[0] != "write_req":
+            return
+
+        _, tagged, dram_addr, value = head
+        self.axi_bus_queue.popleft()
         ready = self.cycle + self.dram_latency_cycles
         self.pending_dram_writes.append((ready, tagged, dram_addr, value))
         tagged["trace"].append(
-            f"cycle {self.cycle}: AXI write issued @0x{dram_addr:x}, commit due cycle {ready}"
+            f"cycle {self.cycle}: AXI write issued @0x{int(dram_addr):x}, "
+            f"commit due cycle {ready}"
         )
 
     def _service_dram_events(self) -> None:
         """
         Service pending DRAM read and write events that have completed their latency period.
+
+        Completed reads are pushed onto the unified AXI bus queue as
+        ``read_resp`` entries (to be deposited into SMEM by ``_run_axi_bus``),
+        and completed writes commit their payload to the DRAM model and
+        mark the originating transaction complete.
         """
         next_pending_reads: List[Tuple[int, Dict[str, Any], int]] = []
         for ready_cycle, tagged, value in self.pending_dram_reads:
             if ready_cycle <= self.cycle:
-                self.memory_read_queue.append((tagged, value))
+                self.axi_bus_queue.append(("read_resp", tagged, value))
                 tagged["trace"].append(
-                    f"cycle {self.cycle}: AXI read response -> Memory Read Queue"
+                    f"cycle {self.cycle}: AXI read response -> AXI Bus Queue"
                 )
             else:
                 next_pending_reads.append((ready_cycle, tagged, value))
@@ -821,8 +927,7 @@ class ShmemFunctionalSimulator:
                 self.input_queue,
                 self.smem_read_queue,
                 self.smem_write_queue,
-                self.memory_read_queue,
-                self.memory_write_queue,
+                self.axi_bus_queue,
                 self.pending_dram_reads,
                 self.pending_dram_writes,
             )
@@ -865,7 +970,7 @@ class ShmemFunctionalSimulator:
 
         if txn.dram_addr is not None:
             line += f"  | dram_addr=0x{txn.dram_addr:04x}"
-            if txn.txn_type == TxnType.ASYNC_LD_DRAM_TO_SRAM:
+            if txn.txn_type == TxnType.GLOBAL_LD_DRAM_TO_SRAM:
                 dram_val = int(self.dram.get(txn.dram_addr, 0)) & self.word_mask
                 line += f"  dram_content=0x{dram_val:08x}"
 
@@ -911,26 +1016,27 @@ class ShmemFunctionalSimulator:
             self.smem_write_queue,
             lambda t: t,
         )
-        if self.memory_read_queue:
-            print(f"  Memory Read Queue ({len(self.memory_read_queue)}):")
-            for tagged, value in self.memory_read_queue:
-                print(
-                    f"    {self._fmt_tagged(tagged)}"
-                    f"  | fetched_data=0x{int(value) & self.word_mask:08x}"
-                )
+        if self.axi_bus_queue:
+            print(f"  AXI Bus Queue ({len(self.axi_bus_queue)}):")
+            for entry in self.axi_bus_queue:
+                kind = entry[0]
+                if kind == "read_resp":
+                    _, tagged, value = entry
+                    print(
+                        f"    [read_resp]  {self._fmt_tagged(tagged)}"
+                        f"  | fetched_data=0x{int(value) & self.word_mask:08x}"
+                    )
+                elif kind == "write_req":
+                    _, tagged, dram_addr, value = entry
+                    print(
+                        f"    [write_req]  {self._fmt_tagged(tagged)}"
+                        f"  | dest_dram=0x{int(dram_addr):04x}"
+                        f"  payload=0x{int(value) & self.word_mask:08x}"
+                    )
+                else:
+                    print(f"    [unknown kind={kind!r}]  {entry!r}")
         else:
-            print("  Memory Read Queue: (empty)")
-
-        if self.memory_write_queue:
-            print(f"  Memory Write Queue ({len(self.memory_write_queue)}):")
-            for tagged, dram_addr, value in self.memory_write_queue:
-                print(
-                    f"    {self._fmt_tagged(tagged)}"
-                    f"  | dest_dram=0x{dram_addr:04x}"
-                    f"  payload=0x{int(value) & self.word_mask:08x}"
-                )
-        else:
-            print("  Memory Write Queue: (empty)")
+            print("  AXI Bus Queue: (empty)")
 
         if self.pending_dram_reads:
             print(f"  Pending DRAM Reads ({len(self.pending_dram_reads)}):")
@@ -1009,8 +1115,8 @@ class ShmemFunctionalSimulator:
         if txn.txn_type in (
             TxnType.SH_LD,
             TxnType.SH_ST,
-            TxnType.ASYNC_LD_DRAM_TO_SRAM,
-            TxnType.ASYNC_ST_SMEM_TO_DRAM,
+            TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+            TxnType.GLOBAL_ST_SMEM_TO_DRAM,
         ) and txn.shmem_addr is None:
             raise ValueError(f"{txn.txn_type.value} requires shmem_addr.")
 
@@ -1018,10 +1124,10 @@ class ShmemFunctionalSimulator:
         if txn.txn_type == TxnType.SH_ST and txn.write_data is None:
             raise ValueError("sh.st requires write_data.")
 
-        # Ensure that all asynchronous transactions that interact with DRAM have a valid dram_addr
+        # Ensure that all global-memory transactions that interact with DRAM have a valid dram_addr
         if txn.txn_type in (
-            TxnType.ASYNC_LD_DRAM_TO_SRAM,
-            TxnType.ASYNC_ST_SMEM_TO_DRAM,
+            TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+            TxnType.GLOBAL_ST_SMEM_TO_DRAM,
         ) and txn.dram_addr is None:
             raise ValueError(f"{txn.txn_type.value} requires dram_addr.")
 
@@ -1170,8 +1276,8 @@ def run_smem_functional_sim(
     Main function to run the SMEM functional simulator.
 
     Each transaction may be a Transaction object or a dict with:
-    - type / txn_type: sh.ld | sh.st | async.ld.dram2sram | async.st.smem2dram
-    - dram_addr: int (required for async transactions)
+    - type / txn_type: sh.ld | sh.st | global.ld.dram2sram | global.st.smem2dram
+    - dram_addr: int (required for global-memory transactions)
     - shmem_addr: int (required for all transactions in this model)
     - write_data: int (required for sh.st)
     - thread_id: int (optional, default 0)
@@ -1540,7 +1646,7 @@ class ShmemCompatibleCacheStage:
             miss = False
             replay = False
         else:
-            # Async operations are completion-based in this model.
+            # Global memory operations are completion-based in this model.
             resp_type = "MISS_COMPLETE"
             hit = False
             miss = True
@@ -1677,73 +1783,104 @@ class SmemArbiter:
 
     def process_batch(self, transactions: List[Transaction]) -> Dict[str, Any]:
         """
-        Partition a batch of transactions into conflict-free sub-batches and
-        issue them to the simulator, stepping between sub-batches.
+        Issue a warp-wide batch of thread transactions into the SMEM arbiter
+        atomically, then drive the simulator until every one of them has
+        been accepted by the arbiter (i.e. left ``input_queue``).
 
-        The algorithm greedily fills each sub-batch with transactions whose
-        target banks have not yet been used in that sub-batch, up to the
-        simulator's ``arbiter_issue_width``.  Transactions that conflict are
-        deferred to the next sub-batch.
+        Warp-synchronous issue model: all ``N`` per-thread transactions
+        enter the arbiter in the same cycle. The simulator's internal
+        bank-parallel arbiter then drains them at up to one-per-bank per
+        cycle, naturally serializing any bank conflicts across subsequent
+        cycles. This replaces the previous software-side sub-batch
+        partitioning, which was a pre-arbitration model that did not match
+        how warp instructions reach the arbiter in real hardware.
 
         Args:
-            transactions: A list of transactions to process.
+            transactions: A list of per-thread transactions comprising one
+                warp-wide instruction.
 
         Returns:
-            A dict with partitioning metadata:
-              - ``num_sub_batches``: how many sub-batches were needed
-              - ``total_transactions``: total input count
-              - ``sub_batch_sizes``: list of per-sub-batch sizes
+            A dict with arbitration metadata:
+
+            - ``total_transactions``: total input count
+            - ``num_arbiter_cycles``: number of cycles the warp occupied the
+              arbiter before all lanes were dispatched to the SMEM queues
+            - ``per_cycle_issue_counts``: list of how many lanes were issued
+              each cycle (length == ``num_arbiter_cycles``)
+            - ``num_sub_batches`` / ``sub_batch_sizes``: backward-compatible
+              aliases for ``num_arbiter_cycles`` / ``per_cycle_issue_counts``
+              so existing callers and assertions keep working.
         """
-        issue_width = self.simulator.arbiter_issue_width
+        total = len(transactions)
 
-        sub_batches: List[List[Transaction]] = []
-        remaining = list(transactions)
+        if total == 0:
+            print(
+                "\n[DEBUG] --- SmemArbiter received an empty warp-wide batch; "
+                "nothing to issue. ---\n"
+            )
+            return {
+                "total_transactions": 0,
+                "num_arbiter_cycles": 0,
+                "per_cycle_issue_counts": [],
+                "num_sub_batches": 0,
+                "sub_batch_sizes": [],
+            }
 
-        while remaining:
-            current_batch: List[Transaction] = []
-            banks_used: Set[int] = set()
-            deferred: List[Transaction] = []
-
-            for txn in remaining:
-                bank = self._get_bank(txn)
-                if bank not in banks_used and len(current_batch) < issue_width:
-                    current_batch.append(txn)
-                    banks_used.add(bank)
-                else:
-                    deferred.append(txn)
-
-            sub_batches.append(current_batch)
-            remaining = deferred
+        sim = self.simulator
 
         print(
-            f"\n[DEBUG] --- SmemArbiter Processing Batch of "
-            f"{len(transactions)} Transactions into "
-            f"{len(sub_batches)} sub-batch(es) ---"
+            f"\n[DEBUG] --- SmemArbiter: atomically issuing {total} warp-wide "
+            f"thread transactions into input_queue @cycle {sim.cycle} ---"
+        )
+        input_len_before = len(sim.input_queue)
+        for txn in transactions:
+            absolute_addr = sim._absolute_smem_addr(txn)
+            bank, bank_slot = self._get_bank_and_slot(txn)
+            self._log_thread_state(
+                txn,
+                sim.cycle,
+                bank,
+                bank_slot,
+                absolute_addr,
+                sub_batch_idx=0,
+            )
+            sim.issue(txn)
+
+        per_cycle_issue_counts: List[int] = []
+        target_input_len = input_len_before
+        max_cycles = max(4096, total * 64)
+        drain_steps = 0
+
+        # A single ``step()`` call invokes the internal arbiter once, so the
+        # number of steps it takes for ``input_queue`` to shrink back to the
+        # pre-issue length equals the number of arbiter cycles this warp
+        # spent being dispatched.
+        while len(sim.input_queue) > target_input_len:
+            drain_steps += 1
+            if drain_steps > max_cycles:
+                raise RuntimeError(
+                    f"SmemArbiter.process_batch did not drain {total} "
+                    f"transactions within {max_cycles} cycles."
+                )
+            before = len(sim.input_queue)
+            sim.step()
+            after = len(sim.input_queue)
+            issued_this_cycle = before - after
+            per_cycle_issue_counts.append(issued_this_cycle)
+
+        num_arbiter_cycles = len(per_cycle_issue_counts)
+        print(
+            f"[DEBUG] --- SmemArbiter: warp cleared arbiter in "
+            f"{num_arbiter_cycles} cycle(s); "
+            f"per-cycle issue counts = {per_cycle_issue_counts} ---\n"
         )
 
-        for batch_idx, batch in enumerate(sub_batches):
-            for txn in batch:
-                absolute_addr = self.simulator._absolute_smem_addr(txn)
-                bank, bank_slot = self._get_bank_and_slot(txn)
-                self._log_thread_state(
-                    txn,
-                    self.simulator.cycle,
-                    bank,
-                    bank_slot,
-                    absolute_addr,
-                    batch_idx,
-                )
-                self.simulator.issue(txn)
-
-            if batch_idx < len(sub_batches) - 1:
-                self.simulator.step()
-
-        print("[DEBUG] --- SmemArbiter Batch Processing Complete ---\n")
-
         return {
-            'num_sub_batches': len(sub_batches),
-            'total_transactions': len(transactions),
-            'sub_batch_sizes': [len(b) for b in sub_batches],
+            "total_transactions": total,
+            "num_arbiter_cycles": num_arbiter_cycles,
+            "per_cycle_issue_counts": list(per_cycle_issue_counts),
+            "num_sub_batches": num_arbiter_cycles,
+            "sub_batch_sizes": list(per_cycle_issue_counts),
         }
 
 
@@ -1907,8 +2044,8 @@ if __name__ == "__main__":
         demo_transactions = [
             {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xDEADBEEF},
             {"type": "sh.ld", "shmem_addr": 0x20},
-            {"type": "async.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000},
-            {"type": "async.ld.dram2sram", "dram_addr": 0x1000, "shmem_addr": 0x24},
+            {"type": "global.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000},
+            {"type": "global.ld.dram2sram", "dram_addr": 0x1000, "shmem_addr": 0x24},
             {"type": "sh.ld", "shmem_addr": 0x24},
         ]
 

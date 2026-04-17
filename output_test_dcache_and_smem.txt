@@ -1,0 +1,21 @@
+
+================================================================================
+== test_dcache_and_smem.py  (2026-04-17T17:18:12)
+================================================================================
+
+test_hit_pipeline_emits_hit_complete_event (__main__.TestDCacheBankAndStage.test_hit_pipeline_emits_hit_complete_event) ... Cache: Received new request: dCacheRequest(addr_val=0x20, rw_mode='read', size='word', store_value=None, halt=False)
+ok
+test_word_write_hit_updates_cacheline_and_sets_dirty (__main__.TestDCacheBankAndStage.test_word_write_hit_updates_cacheline_and_sets_dirty) ... ok
+test_primary_miss_becomes_ready_after_countdown (__main__.TestDCacheMSHR.test_primary_miss_becomes_ready_after_countdown) ... ok
+test_secondary_write_miss_merges_into_existing_entry (__main__.TestDCacheMSHR.test_secondary_write_miss_merges_into_existing_entry) ... ok
+test_stall_when_mshr_full_and_bank_busy (__main__.TestDCacheMSHR.test_stall_when_mshr_full_and_bank_busy) ... ok
+test_bank_conflicts_are_serialized_per_bank (__main__.TestSMEMFunctionalSimulator.test_bank_conflicts_are_serialized_per_bank)
+Bank-parallel warp-synchronous arbiter: requests to the same bank ... ok
+test_global_load_then_sh_load_reads_back_dram_value (__main__.TestSMEMFunctionalSimulator.test_global_load_then_sh_load_reads_back_dram_value) ... ok
+test_global_store_writes_to_dram (__main__.TestSMEMFunctionalSimulator.test_global_store_writes_to_dram) ... ok
+test_sh_store_then_load_round_trip (__main__.TestSMEMFunctionalSimulator.test_sh_store_then_load_round_trip) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.006s
+
+OK

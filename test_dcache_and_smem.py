@@ -312,19 +312,19 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
         completions = {c["txn_id"]: c for c in result["completions"]}
         self.assertEqual(completions[2]["read_data"], 0xDEADBEEF)
 
-    def test_async_store_writes_to_dram(self):
+    def test_global_store_writes_to_dram(self):
         result = run_smem_functional_sim(
             [
                 {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xCAFEBABE},
-                {"type": "async.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000},
+                {"type": "global.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000},
             ]
         )
         self.assertEqual(result["dram"][0x1000], 0xCAFEBABE)
 
-    def test_async_load_then_sh_load_reads_back_dram_value(self):
+    def test_global_load_then_sh_load_reads_back_dram_value(self):
         result = run_smem_functional_sim(
             [
-                {"type": "async.ld.dram2sram", "dram_addr": 0x1000, "shmem_addr": 0x24},
+                {"type": "global.ld.dram2sram", "dram_addr": 0x1000, "shmem_addr": 0x24},
                 {"type": "sh.ld", "shmem_addr": 0x24},
             ],
             dram_init={0x1000: 0x1234ABCD},
@@ -332,7 +332,19 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
         completions = {c["txn_id"]: c for c in result["completions"]}
         self.assertEqual(completions[2]["read_data"], 0x1234ABCD)
 
-    def test_bank_conflicts_are_split_but_order_preserved(self):
+    def test_bank_conflicts_are_serialized_per_bank(self):
+        """
+        Bank-parallel warp-synchronous arbiter: requests to the same bank
+        serialize across cycles (deferred requests block only their own
+        bank), while a non-conflicting request to a different bank is
+        arbitrated in parallel with the lane ahead of it rather than
+        being stalled behind the conflict.
+
+        Issue order:
+            txn 1: sh.st 0x20 -> bank 8
+            txn 2: sh.st 0xA0 -> bank 8 (CONFLICT with txn 1, deferred)
+            txn 3: sh.st 0x24 -> bank 9 (non-conflicting, co-arbitrated w/ txn 1)
+        """
         result = run_smem_functional_sim(
             [
                 {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0x1},
@@ -344,18 +356,29 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
         completions = {c["txn_id"]: c for c in result["completions"]}
 
         self.assertGreater(
-            completions[2]["cycle_completed"], completions[1]["cycle_completed"]
-        )
-        self.assertGreaterEqual(
-            completions[3]["cycle_completed"], completions[2]["cycle_completed"]
+            completions[2]["cycle_completed"],
+            completions[1]["cycle_completed"],
+            "Same-bank conflict must serialize: txn 2 completes after txn 1.",
         )
         self.assertTrue(
             any(
                 "arbiter stall on bank conflict" in step
                 for step in completions[2]["trace"]
-            )
+            ),
+            "Deferred txn 2 trace must record the bank-conflict stall.",
+        )
+        self.assertFalse(
+            any(
+                "arbiter stall on bank conflict" in step
+                for step in completions[3]["trace"]
+            ),
+            "Non-conflicting txn 3 must NOT be arbiter-stalled by the "
+            "unrelated bank-8 conflict between txns 1 and 2.",
         )
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    from test_output import capture_to_test_log
+
+    with capture_to_test_log(__file__):
+        unittest.main(verbosity=2, exit=False)

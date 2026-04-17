@@ -247,12 +247,12 @@ def _build_cases() -> List[CycleCase]:
     sh_st_old = 0xDEADBEEF
     sh_st_new = 0xA1B2C3D4
 
-    async_ld_addr = 0x3000
-    async_ld_data = 0xCAFED00D
+    global_ld_addr = 0x3000
+    global_ld_data = 0xCAFED00D
 
-    async_st_shmem_addr = 0x2C
-    async_st_dram_addr = 0x3100
-    async_st_data = 0x55AA66CC
+    global_st_shmem_addr = 0x2C
+    global_st_dram_addr = 0x3100
+    global_st_data = 0x55AA66CC
 
     mem_latency = 4
 
@@ -307,56 +307,56 @@ def _build_cases() -> List[CycleCase]:
             expect_smem_txn_type=TxnType.SH_ST.value,
         ),
         CycleCase(
-            name="async.ld.dram2sram",
+            name="global.ld.dram2sram",
             note="Compared to dcache read miss completion path.",
             run_dcache=lambda: _run_dcache_to_completion(
                 DCACHE["dCacheRequest"](
-                    addr_val=async_ld_addr,
+                    addr_val=global_ld_addr,
                     rw_mode="read",
                     size="word",
                 ),
                 mem_latency_cycles=mem_latency,
-                memory_words={async_ld_addr: async_ld_data},
+                memory_words={global_ld_addr: global_ld_data},
             ),
             run_smem=lambda: _run_smem_to_completion(
                 Transaction(
-                    txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM,
-                    dram_addr=async_ld_addr,
+                    txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                    dram_addr=global_ld_addr,
                     shmem_addr=0x28,
                 ),
-                dram_init={async_ld_addr: async_ld_data},
+                dram_init={global_ld_addr: global_ld_data},
                 dram_latency_cycles=mem_latency,
             ),
             expect_dcache_completion="MISS_COMPLETE",
-            expect_smem_txn_type=TxnType.ASYNC_LD_DRAM_TO_SRAM.value,
+            expect_smem_txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM.value,
         ),
         CycleCase(
-            name="async.st.smem2dram",
+            name="global.st.smem2dram",
             note="Compared to dcache write-miss allocate/complete path.",
             run_dcache=lambda: _run_dcache_to_completion(
                 DCACHE["dCacheRequest"](
-                    addr_val=async_st_dram_addr,
+                    addr_val=global_st_dram_addr,
                     rw_mode="write",
                     size="word",
-                    store_value=async_st_data,
+                    store_value=global_st_data,
                 ),
                 mem_latency_cycles=mem_latency,
             ),
             run_smem=lambda: _run_smem_to_completion(
                 Transaction(
-                    txn_type=TxnType.ASYNC_ST_SMEM_TO_DRAM,
-                    dram_addr=async_st_dram_addr,
-                    shmem_addr=async_st_shmem_addr,
+                    txn_type=TxnType.GLOBAL_ST_SMEM_TO_DRAM,
+                    dram_addr=global_st_dram_addr,
+                    shmem_addr=global_st_shmem_addr,
                 ),
                 dram_latency_cycles=mem_latency,
                 preload=lambda sim: _preload_smem_word(
                     sim,
-                    shmem_addr=async_st_shmem_addr,
-                    value=async_st_data,
+                    shmem_addr=global_st_shmem_addr,
+                    value=global_st_data,
                 ),
             ),
             expect_dcache_completion="MISS_COMPLETE",
-            expect_smem_txn_type=TxnType.ASYNC_ST_SMEM_TO_DRAM.value,
+            expect_smem_txn_type=TxnType.GLOBAL_ST_SMEM_TO_DRAM.value,
         ),
     ]
 
@@ -432,5 +432,8 @@ def print_cycle_report(rows: List[Dict[str, Any]]) -> None:
 
 
 if __name__ == "__main__":
-    report_rows = generate_cycle_report_rows()
-    print_cycle_report(report_rows)
+    from test_output import capture_to_test_log
+
+    with capture_to_test_log(__file__):
+        report_rows = generate_cycle_report_rows()
+        print_cycle_report(report_rows)

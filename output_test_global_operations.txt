@@ -1,0 +1,1499 @@
+
+================================================================================
+== test_global_operations.py  (2026-04-17T17:18:12)
+================================================================================
+
+
+=== TEST: Global Round-Trip (sh.st -> global.st -> global.ld -> sh.ld) ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 2 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.st                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | write_data=0xcafebabe
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | global.st.smem2dram  | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | dram_addr=0x4000
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | write_data=0xcafebabe
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | dram_addr=0x4000
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0020  tbo=0x0000  (issued @0, completed @0)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | dram_addr=0x4000
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | dram_addr=0x4000
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | dram_addr=0x4000  | dest_dram=0x4000  payload=0xcafebabe  ready @cycle 2
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 2 cycle(s); per-cycle issue counts = [1, 1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  -> bank  8, slot 0  | dram_addr=0x4000  | dest_dram=0x4000  payload=0xcafebabe  ready @cycle 2
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #2 global.st.smem2dram   shmem=0x0020  abs=0x0020  tbo=0x0000  (issued @0, completed @2)  | dram_addr=0x4000
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 3 ---
+[DEBUG] Sub-batch 0 | Cycle 3 | Thread  0 | global.ld.dram2sram  | Addr 0x0024 | AbsAddr 0x0024 | TBO 0x0000 | XOR Map -> Bank  9 | Slot    0 | dram_addr=0x4000
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T00 #3 global.ld.dram2sram   shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | dram_addr=0x4000  dram_content=0xcafebabe
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #3 global.ld.dram2sram   shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | dram_addr=0x4000  dram_content=0xcafebabe  | fetched_data=0xcafebabe  ready @cycle 4
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #3 global.ld.dram2sram   shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | dram_addr=0x4000  dram_content=0xcafebabe  | fetched_data=0xcafebabe  ready @cycle 4
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #3 global.ld.dram2sram   shmem=0x0024  abs=0x0024  tbo=0x0000  (issued @3, completed @4)  | dram_addr=0x4000
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 5 ---
+[DEBUG] Sub-batch 0 | Cycle 5 | Thread  0 | sh.ld                | Addr 0x0024 | AbsAddr 0x0024 | TBO 0x0000 | XOR Map -> Bank  9 | Slot    0 | bank_content=0xcafebabe
+
+------------------------------------------------------------------------------
+  CYCLE 5  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T00 #4 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  -> bank  9, slot 0  | bank_content=0xcafebabe
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #4 sh.ld                 shmem=0x0024  abs=0x0024  tbo=0x0000  (issued @5, completed @5)  | read_data=0xcafebabe
+
+------------------------------------------------------------------------------
+  CYCLE 5  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+Completions:
+{'txn_id': 1, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 0, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 32, 'absolute_shmem_addr': 32, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: SH.ST -> bank 8, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: SH.ST -> bank 8, slot 0
+{'txn_id': 2, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 2, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 16384, 'shmem_addr': 32, 'absolute_shmem_addr': 32, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter stall on bank conflict (bank 8)', 'cycle 1: arbiter -> SMEM Read Queue', 'cycle 1: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 1: AXI write issued @0x4000, commit due cycle 2', 'cycle 2: AXI write committed @0x4000']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter stall on bank conflict (bank 8)
+    cycle 1: arbiter -> SMEM Read Queue
+    cycle 1: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 1: AXI write issued @0x4000, commit due cycle 2
+    cycle 2: AXI write committed @0x4000
+{'txn_id': 3, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 3, 'cycle_completed': 4, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 16384, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': None, 'note': '', 'trace': ['cycle 3: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 3: arbiter -> SMEM Write Queue', 'cycle 3: issued AXI read @0x4000, response due cycle 4', 'cycle 4: AXI read response -> AXI Bus Queue', 'cycle 4: AXI Bus Queue -> SMEM bank 9, slot 0']}
+  Traceback:
+    cycle 3: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 3: arbiter -> SMEM Write Queue
+    cycle 3: issued AXI read @0x4000, response due cycle 4
+    cycle 4: AXI read response -> AXI Bus Queue
+    cycle 4: AXI Bus Queue -> SMEM bank 9, slot 0
+{'txn_id': 4, 'txn_type': 'sh.ld', 'status': 'ok', 'cycle_issued': 5, 'cycle_completed': 5, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 36, 'absolute_shmem_addr': 36, 'read_data': 3405691582, 'note': 'Data crossbar intentionally not modeled; value returned directly.', 'trace': ['cycle 5: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 5: arbiter -> SMEM Read Queue', 'cycle 5: SMEM Read Controller read bank 9, slot 0']}
+  Traceback:
+    cycle 5: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 5: arbiter -> SMEM Read Queue
+    cycle 5: SMEM Read Controller read bank 9, slot 0
+Completed in 6 cycles across 3 phases. Total sub-batches: 4
+
+=== TEST: Pipelined Global Loads (4 threads, no bank conflict) ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | global.ld.dram2sram  | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | dram_addr=0x0100
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | global.ld.dram2sram  | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | dram_addr=0x0104
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  2 | global.ld.dram2sram  | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | dram_addr=0x0108
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  3 | global.ld.dram2sram  | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | dram_addr=0x010c
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #1 global.ld.dram2sram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0100  dram_content=0x000000a1
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0104  dram_content=0x000000b2
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (3):
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0104  dram_content=0x000000b2
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0100  dram_content=0x000000a1  | fetched_data=0x000000a1  ready @cycle 1
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [4] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (3):
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0104  dram_content=0x000000b2
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0100  dram_content=0x000000a1  | fetched_data=0x000000a1  ready @cycle 1
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @0, completed @1)  | dram_addr=0x0100
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (2):
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0104  dram_content=0x000000b2  | fetched_data=0x000000b2  ready @cycle 2
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (2):
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0104  dram_content=0x000000b2  | fetched_data=0x000000b2  ready @cycle 2
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @0, completed @2)  | dram_addr=0x0104
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3  | fetched_data=0x000000c3  ready @cycle 3
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0108  dram_content=0x000000c3  | fetched_data=0x000000c3  ready @cycle 3
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T02 #3 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @0, completed @3)  | dram_addr=0x0108
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4  | fetched_data=0x000000d4  ready @cycle 4
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x010c  dram_content=0x000000d4  | fetched_data=0x000000d4  ready @cycle 4
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T03 #4 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @0, completed @4)  | dram_addr=0x010c
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+Completions:
+{'txn_id': 1, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 1, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 256, 'shmem_addr': 64, 'absolute_shmem_addr': 64, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: issued AXI read @0x100, response due cycle 1', 'cycle 1: AXI read response -> AXI Bus Queue', 'cycle 1: AXI Bus Queue -> SMEM bank 16, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: issued AXI read @0x100, response due cycle 1
+    cycle 1: AXI read response -> AXI Bus Queue
+    cycle 1: AXI Bus Queue -> SMEM bank 16, slot 0
+{'txn_id': 2, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 2, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': 260, 'shmem_addr': 68, 'absolute_shmem_addr': 68, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 1: issued AXI read @0x104, response due cycle 2', 'cycle 2: AXI read response -> AXI Bus Queue', 'cycle 2: AXI Bus Queue -> SMEM bank 17, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 1: issued AXI read @0x104, response due cycle 2
+    cycle 2: AXI read response -> AXI Bus Queue
+    cycle 2: AXI Bus Queue -> SMEM bank 17, slot 0
+{'txn_id': 3, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': 264, 'shmem_addr': 72, 'absolute_shmem_addr': 72, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 2: issued AXI read @0x108, response due cycle 3', 'cycle 3: AXI read response -> AXI Bus Queue', 'cycle 3: AXI Bus Queue -> SMEM bank 18, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 2: issued AXI read @0x108, response due cycle 3
+    cycle 3: AXI read response -> AXI Bus Queue
+    cycle 3: AXI Bus Queue -> SMEM bank 18, slot 0
+{'txn_id': 4, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 4, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': 268, 'shmem_addr': 76, 'absolute_shmem_addr': 76, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 3: issued AXI read @0x10c, response due cycle 4', 'cycle 4: AXI read response -> AXI Bus Queue', 'cycle 4: AXI Bus Queue -> SMEM bank 19, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 3: issued AXI read @0x10c, response due cycle 4
+    cycle 4: AXI read response -> AXI Bus Queue
+    cycle 4: AXI Bus Queue -> SMEM bank 19, slot 0
+Completed in 5 cycles. Sub-batches: 1 (sizes: [4])
+
+=== TEST: Pipelined Global Stores (4 threads, no bank conflict) ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.st                | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | write_data=0x0000a000
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | sh.st                | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | write_data=0x0000a001
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  2 | sh.st                | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | write_data=0x0000a002
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  3 | sh.st                | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | write_data=0x0000a003
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #1 sh.st                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | write_data=0x0000a000
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000a001
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | write_data=0x0000a002
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 sh.st                 shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @0, completed @0)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (3):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000a001
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | write_data=0x0000a002
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [4] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (3):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000a001
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | write_data=0x0000a002
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @0, completed @1)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (2):
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | write_data=0x0000a002
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (2):
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | write_data=0x0000a002
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T02 #3 sh.st                 shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @0, completed @2)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | write_data=0x0000a003
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T03 #4 sh.st                 shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @0, completed @3)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 4 ---
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  0 | global.st.smem2dram  | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | dram_addr=0x0200
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  1 | global.st.smem2dram  | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | dram_addr=0x0204
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  2 | global.st.smem2dram  | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | dram_addr=0x0208
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  3 | global.st.smem2dram  | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | dram_addr=0x020c
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #5 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0200
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0204
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (3):
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0204
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #5 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0200  | dest_dram=0x0200  payload=0x0000a000  ready @cycle 5
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [4] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 5  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (3):
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0204
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #5 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0200  | dest_dram=0x0200  payload=0x0000a000  ready @cycle 5
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #5 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @4, completed @5)  | dram_addr=0x0200
+
+------------------------------------------------------------------------------
+  CYCLE 5  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (2):
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0204  | dest_dram=0x0204  payload=0x0000a001  ready @cycle 6
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 6  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (2):
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0204  | dest_dram=0x0204  payload=0x0000a001  ready @cycle 6
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #6 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @4, completed @6)  | dram_addr=0x0204
+
+------------------------------------------------------------------------------
+  CYCLE 6  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208  | dest_dram=0x0208  payload=0x0000a002  ready @cycle 7
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 7  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0208  | dest_dram=0x0208  payload=0x0000a002  ready @cycle 7
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T02 #7 global.st.smem2dram   shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @4, completed @7)  | dram_addr=0x0208
+
+------------------------------------------------------------------------------
+  CYCLE 7  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c  | dest_dram=0x020c  payload=0x0000a003  ready @cycle 8
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 8  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x020c  | dest_dram=0x020c  payload=0x0000a003  ready @cycle 8
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T03 #8 global.st.smem2dram   shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @4, completed @8)  | dram_addr=0x020c
+
+------------------------------------------------------------------------------
+  CYCLE 8  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+Completions:
+{'txn_id': 1, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 0, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 64, 'absolute_shmem_addr': 64, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: SH.ST -> bank 16, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: SH.ST -> bank 16, slot 0
+{'txn_id': 2, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 1, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 68, 'absolute_shmem_addr': 68, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 1: SH.ST -> bank 17, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 1: SH.ST -> bank 17, slot 0
+{'txn_id': 3, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 2, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 72, 'absolute_shmem_addr': 72, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 2: SH.ST -> bank 18, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 2: SH.ST -> bank 18, slot 0
+{'txn_id': 4, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 76, 'absolute_shmem_addr': 76, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 3: SH.ST -> bank 19, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 3: SH.ST -> bank 19, slot 0
+{'txn_id': 5, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 5, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 512, 'shmem_addr': 64, 'absolute_shmem_addr': 64, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 4: arbiter -> SMEM Read Queue', 'cycle 4: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 4: AXI write issued @0x200, commit due cycle 5', 'cycle 5: AXI write committed @0x200']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 4: arbiter -> SMEM Read Queue
+    cycle 4: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 4: AXI write issued @0x200, commit due cycle 5
+    cycle 5: AXI write committed @0x200
+{'txn_id': 6, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 6, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': 516, 'shmem_addr': 68, 'absolute_shmem_addr': 68, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 4: arbiter -> SMEM Read Queue', 'cycle 5: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 5: AXI write issued @0x204, commit due cycle 6', 'cycle 6: AXI write committed @0x204']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 4: arbiter -> SMEM Read Queue
+    cycle 5: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 5: AXI write issued @0x204, commit due cycle 6
+    cycle 6: AXI write committed @0x204
+{'txn_id': 7, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 7, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': 520, 'shmem_addr': 72, 'absolute_shmem_addr': 72, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 4: arbiter -> SMEM Read Queue', 'cycle 6: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 6: AXI write issued @0x208, commit due cycle 7', 'cycle 7: AXI write committed @0x208']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 4: arbiter -> SMEM Read Queue
+    cycle 6: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 6: AXI write issued @0x208, commit due cycle 7
+    cycle 7: AXI write committed @0x208
+{'txn_id': 8, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 8, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': 524, 'shmem_addr': 76, 'absolute_shmem_addr': 76, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 4: arbiter -> SMEM Read Queue', 'cycle 7: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 7: AXI write issued @0x20c, commit due cycle 8', 'cycle 8: AXI write committed @0x20c']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 4: arbiter -> SMEM Read Queue
+    cycle 7: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 7: AXI write issued @0x20c, commit due cycle 8
+    cycle 8: AXI write committed @0x20c
+Completed in 9 cycles. Global-store sub-batches: 1 (sizes: [4])
+
+=== TEST: Global Store Bank-Conflict Divergence (4-way same bank) ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.st                | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | write_data=0x00001000
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | sh.st                | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | write_data=0x00001001
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  2 | sh.st                | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | write_data=0x00001002
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  3 | sh.st                | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | write_data=0x00001003
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #1 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001000
+    T01 #2 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001001
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001002
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @0, completed @0)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue (3):
+    T01 #2 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001001
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001002
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (3):
+    T01 #2 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001001
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001002
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #2 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @0, completed @1)  | read_data=0x00001000
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001002
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001002
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T02 #3 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @0, completed @2)  | read_data=0x00001001
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | write_data=0x00001003
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T03 #4 sh.st                 shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @0, completed @3)  | read_data=0x00001002
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 4 cycle(s); per-cycle issue counts = [1, 1, 1, 1] ---
+
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 4 ---
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  0 | global.st.smem2dram  | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | dram_addr=0x3000
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  1 | global.st.smem2dram  | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | dram_addr=0x3004
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  2 | global.st.smem2dram  | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | dram_addr=0x3008
+[DEBUG] Sub-batch 0 | Cycle 4 | Thread  3 | global.st.smem2dram  | Addr 0x0000 | AbsAddr 0x0000 | TBO 0x0000 | XOR Map -> Bank  0 | Slot    0 | dram_addr=0x300c
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #5 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3000
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3004
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue (3):
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3004
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #5 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3000  | dest_dram=0x3000  payload=0x00001003  ready @cycle 5
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 5  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (3):
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3004
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #5 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3000  | dest_dram=0x3000  payload=0x00001003  ready @cycle 5
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #5 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @4, completed @5)  | dram_addr=0x3000
+
+------------------------------------------------------------------------------
+  CYCLE 5  [END]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3004  | dest_dram=0x3004  payload=0x00001003  ready @cycle 6
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 6  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3004  | dest_dram=0x3004  payload=0x00001003  ready @cycle 6
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #6 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @4, completed @6)  | dram_addr=0x3004
+
+------------------------------------------------------------------------------
+  CYCLE 6  [END]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008  | dest_dram=0x3008  payload=0x00001003  ready @cycle 7
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 7  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (1):
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x3008  | dest_dram=0x3008  payload=0x00001003  ready @cycle 7
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T02 #7 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @4, completed @7)  | dram_addr=0x3008
+
+------------------------------------------------------------------------------
+  CYCLE 7  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c  | dest_dram=0x300c  payload=0x00001003  ready @cycle 8
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 4 cycle(s); per-cycle issue counts = [1, 1, 1, 1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 8  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  -> bank  0, slot 0  | dram_addr=0x300c  | dest_dram=0x300c  payload=0x00001003  ready @cycle 8
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T03 #8 global.st.smem2dram   shmem=0x0000  abs=0x0000  tbo=0x0000  (issued @4, completed @8)  | dram_addr=0x300c
+
+------------------------------------------------------------------------------
+  CYCLE 8  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+Completions:
+{'txn_id': 1, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 0, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: SH.ST -> bank 0, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: SH.ST -> bank 0, slot 0
+{'txn_id': 2, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 1, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': 4096, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 0: arbiter stall on bank conflict (bank 0)', 'cycle 1: arbiter -> SMEM Write Queue', 'cycle 1: SH.ST -> bank 0, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 0: arbiter stall on bank conflict (bank 0)
+    cycle 1: arbiter -> SMEM Write Queue
+    cycle 1: SH.ST -> bank 0, slot 0
+{'txn_id': 3, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 2, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': 4097, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 0: arbiter stall on bank conflict (bank 0)', 'cycle 1: arbiter stall on bank conflict (bank 0)', 'cycle 2: arbiter -> SMEM Write Queue', 'cycle 2: SH.ST -> bank 0, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 0: arbiter stall on bank conflict (bank 0)
+    cycle 1: arbiter stall on bank conflict (bank 0)
+    cycle 2: arbiter -> SMEM Write Queue
+    cycle 2: SH.ST -> bank 0, slot 0
+{'txn_id': 4, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 3, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': 4098, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 0: arbiter stall on bank conflict (bank 0)', 'cycle 1: arbiter stall on bank conflict (bank 0)', 'cycle 2: arbiter stall on bank conflict (bank 0)', 'cycle 3: arbiter -> SMEM Write Queue', 'cycle 3: SH.ST -> bank 0, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 0: arbiter stall on bank conflict (bank 0)
+    cycle 1: arbiter stall on bank conflict (bank 0)
+    cycle 2: arbiter stall on bank conflict (bank 0)
+    cycle 3: arbiter -> SMEM Write Queue
+    cycle 3: SH.ST -> bank 0, slot 0
+{'txn_id': 5, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 5, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 12288, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 4: arbiter -> SMEM Read Queue', 'cycle 4: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 4: AXI write issued @0x3000, commit due cycle 5', 'cycle 5: AXI write committed @0x3000']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 4: arbiter -> SMEM Read Queue
+    cycle 4: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 4: AXI write issued @0x3000, commit due cycle 5
+    cycle 5: AXI write committed @0x3000
+{'txn_id': 6, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 6, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': 12292, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 4: arbiter stall on bank conflict (bank 0)', 'cycle 5: arbiter -> SMEM Read Queue', 'cycle 5: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 5: AXI write issued @0x3004, commit due cycle 6', 'cycle 6: AXI write committed @0x3004']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 4: arbiter stall on bank conflict (bank 0)
+    cycle 5: arbiter -> SMEM Read Queue
+    cycle 5: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 5: AXI write issued @0x3004, commit due cycle 6
+    cycle 6: AXI write committed @0x3004
+{'txn_id': 7, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 7, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': 12296, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 4: arbiter stall on bank conflict (bank 0)', 'cycle 5: arbiter stall on bank conflict (bank 0)', 'cycle 6: arbiter -> SMEM Read Queue', 'cycle 6: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 6: AXI write issued @0x3008, commit due cycle 7', 'cycle 7: AXI write committed @0x3008']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 4: arbiter stall on bank conflict (bank 0)
+    cycle 5: arbiter stall on bank conflict (bank 0)
+    cycle 6: arbiter -> SMEM Read Queue
+    cycle 6: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 6: AXI write issued @0x3008, commit due cycle 7
+    cycle 7: AXI write committed @0x3008
+{'txn_id': 8, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 4, 'cycle_completed': 8, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': 12300, 'shmem_addr': 0, 'absolute_shmem_addr': 0, 'read_data': None, 'note': '', 'trace': ['cycle 4: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 4: arbiter stall on bank conflict (bank 0)', 'cycle 5: arbiter stall on bank conflict (bank 0)', 'cycle 6: arbiter stall on bank conflict (bank 0)', 'cycle 7: arbiter -> SMEM Read Queue', 'cycle 7: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 7: AXI write issued @0x300c, commit due cycle 8', 'cycle 8: AXI write committed @0x300c']}
+  Traceback:
+    cycle 4: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 4: arbiter stall on bank conflict (bank 0)
+    cycle 5: arbiter stall on bank conflict (bank 0)
+    cycle 6: arbiter stall on bank conflict (bank 0)
+    cycle 7: arbiter -> SMEM Read Queue
+    cycle 7: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 7: AXI write issued @0x300c, commit due cycle 8
+    cycle 8: AXI write committed @0x300c
+Completed in 9 cycles. Global-store sub-batches: 4 (sizes: [1, 1, 1, 1])
+
+=== TEST: Concurrent Global Loads + Stores (mixed batch) ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 2 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.st                | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | write_data=0x0000aaaa
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | sh.st                | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | write_data=0x0000bbbb
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T00 #1 sh.st                 shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | write_data=0x0000aaaa
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000bbbb
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 sh.st                 shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @0, completed @0)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000bbbb
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [2] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | write_data=0x0000bbbb
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #2 sh.st                 shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @0, completed @1)  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 2 ---
+[DEBUG] Sub-batch 0 | Cycle 2 | Thread  0 | global.st.smem2dram  | Addr 0x0040 | AbsAddr 0x0040 | TBO 0x0000 | XOR Map -> Bank 16 | Slot    0 | dram_addr=0x0800
+[DEBUG] Sub-batch 0 | Cycle 2 | Thread  1 | global.st.smem2dram  | Addr 0x0044 | AbsAddr 0x0044 | TBO 0x0000 | XOR Map -> Bank 17 | Slot    0 | dram_addr=0x0804
+[DEBUG] Sub-batch 0 | Cycle 2 | Thread  2 | global.ld.dram2sram  | Addr 0x0048 | AbsAddr 0x0048 | TBO 0x0000 | XOR Map -> Bank 18 | Slot    0 | dram_addr=0x0700
+[DEBUG] Sub-batch 0 | Cycle 2 | Thread  3 | global.ld.dram2sram  | Addr 0x004c | AbsAddr 0x004c | TBO 0x0000 | XOR Map -> Bank 19 | Slot    0 | dram_addr=0x0704
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (4):
+    T00 #3 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0800
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0804
+    T02 #5 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0700  dram_content=0x0000f00d
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x0704  dram_content=0x0000beef
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0804
+  SMEM Write Queue (1):
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x0704  dram_content=0x0000beef
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T02 #5 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0700  dram_content=0x0000f00d  | fetched_data=0x0000f00d  ready @cycle 3
+  Pending DRAM Writes (1):
+    T00 #3 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0800  | dest_dram=0x0800  payload=0x0000aaaa  ready @cycle 3
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [4] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0804
+  SMEM Write Queue (1):
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x0704  dram_content=0x0000beef
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T02 #5 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  -> bank 18, slot 0  | dram_addr=0x0700  dram_content=0x0000f00d  | fetched_data=0x0000f00d  ready @cycle 3
+  Pending DRAM Writes (1):
+    T00 #3 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  -> bank 16, slot 0  | dram_addr=0x0800  | dest_dram=0x0800  payload=0x0000aaaa  ready @cycle 3
+------------------------------------------------------------------------------
+  >> Completed this cycle (2):
+    T00 #3 global.st.smem2dram   shmem=0x0040  abs=0x0040  tbo=0x0000  (issued @2, completed @3)  | dram_addr=0x0800
+    T02 #5 global.ld.dram2sram   shmem=0x0048  abs=0x0048  tbo=0x0000  (issued @2, completed @3)  | dram_addr=0x0700
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x0704  dram_content=0x0000beef  | fetched_data=0x0000beef  ready @cycle 4
+  Pending DRAM Writes (1):
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0804  | dest_dram=0x0804  payload=0x0000bbbb  ready @cycle 4
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  -> bank 19, slot 0  | dram_addr=0x0704  dram_content=0x0000beef  | fetched_data=0x0000beef  ready @cycle 4
+  Pending DRAM Writes (1):
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  -> bank 17, slot 0  | dram_addr=0x0804  | dest_dram=0x0804  payload=0x0000bbbb  ready @cycle 4
+------------------------------------------------------------------------------
+  >> Completed this cycle (2):
+    T01 #4 global.st.smem2dram   shmem=0x0044  abs=0x0044  tbo=0x0000  (issued @2, completed @4)  | dram_addr=0x0804
+    T03 #6 global.ld.dram2sram   shmem=0x004c  abs=0x004c  tbo=0x0000  (issued @2, completed @4)  | dram_addr=0x0704
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+Completions:
+{'txn_id': 1, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 0, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 64, 'absolute_shmem_addr': 64, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: SH.ST -> bank 16, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: SH.ST -> bank 16, slot 0
+{'txn_id': 2, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 1, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': None, 'shmem_addr': 68, 'absolute_shmem_addr': 68, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 1: SH.ST -> bank 17, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 1: SH.ST -> bank 17, slot 0
+{'txn_id': 3, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 2, 'cycle_completed': 3, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 2048, 'shmem_addr': 64, 'absolute_shmem_addr': 64, 'read_data': None, 'note': '', 'trace': ['cycle 2: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 2: arbiter -> SMEM Read Queue', 'cycle 2: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 2: AXI write issued @0x800, commit due cycle 3', 'cycle 3: AXI write committed @0x800']}
+  Traceback:
+    cycle 2: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 2: arbiter -> SMEM Read Queue
+    cycle 2: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 2: AXI write issued @0x800, commit due cycle 3
+    cycle 3: AXI write committed @0x800
+{'txn_id': 5, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 2, 'cycle_completed': 3, 'thread_id': 2, 'thread_block_offset_effective': 0, 'dram_addr': 1792, 'shmem_addr': 72, 'absolute_shmem_addr': 72, 'read_data': None, 'note': '', 'trace': ['cycle 2: accepted by simulator input (thread=2, tbo=0x0)', 'cycle 2: arbiter -> SMEM Write Queue', 'cycle 2: issued AXI read @0x700, response due cycle 3', 'cycle 3: AXI read response -> AXI Bus Queue', 'cycle 3: AXI Bus Queue -> SMEM bank 18, slot 0']}
+  Traceback:
+    cycle 2: accepted by simulator input (thread=2, tbo=0x0)
+    cycle 2: arbiter -> SMEM Write Queue
+    cycle 2: issued AXI read @0x700, response due cycle 3
+    cycle 3: AXI read response -> AXI Bus Queue
+    cycle 3: AXI Bus Queue -> SMEM bank 18, slot 0
+{'txn_id': 4, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 2, 'cycle_completed': 4, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': 2052, 'shmem_addr': 68, 'absolute_shmem_addr': 68, 'read_data': None, 'note': '', 'trace': ['cycle 2: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 2: arbiter -> SMEM Read Queue', 'cycle 3: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 3: AXI write issued @0x804, commit due cycle 4', 'cycle 4: AXI write committed @0x804']}
+  Traceback:
+    cycle 2: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 2: arbiter -> SMEM Read Queue
+    cycle 3: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 3: AXI write issued @0x804, commit due cycle 4
+    cycle 4: AXI write committed @0x804
+{'txn_id': 6, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 2, 'cycle_completed': 4, 'thread_id': 3, 'thread_block_offset_effective': 0, 'dram_addr': 1796, 'shmem_addr': 76, 'absolute_shmem_addr': 76, 'read_data': None, 'note': '', 'trace': ['cycle 2: accepted by simulator input (thread=3, tbo=0x0)', 'cycle 2: arbiter -> SMEM Write Queue', 'cycle 3: issued AXI read @0x704, response due cycle 4', 'cycle 4: AXI read response -> AXI Bus Queue', 'cycle 4: AXI Bus Queue -> SMEM bank 19, slot 0']}
+  Traceback:
+    cycle 2: accepted by simulator input (thread=3, tbo=0x0)
+    cycle 2: arbiter -> SMEM Write Queue
+    cycle 3: issued AXI read @0x704, response due cycle 4
+    cycle 4: AXI read response -> AXI Bus Queue
+    cycle 4: AXI Bus Queue -> SMEM bank 19, slot 0
+Completed in 5 cycles. Mixed-global sub-batches: 1 (sizes: [4])
+
+=== TEST: Global Load with dram_latency_cycles=5 ===
+
+[DEBUG] --- SmemArbiter: atomically issuing 2 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | global.ld.dram2sram  | Addr 0x0050 | AbsAddr 0x0050 | TBO 0x0000 | XOR Map -> Bank 20 | Slot    0 | dram_addr=0x0a00
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | global.ld.dram2sram  | Addr 0x0054 | AbsAddr 0x0054 | TBO 0x0000 | XOR Map -> Bank 21 | Slot    0 | dram_addr=0x0a04
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [2] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 5  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (2):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  -> bank 20, slot 0  | dram_addr=0x0a00  dram_content=0xfeedface  | fetched_data=0xfeedface  ready @cycle 5
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 global.ld.dram2sram   shmem=0x0050  abs=0x0050  tbo=0x0000  (issued @0, completed @5)  | dram_addr=0x0a00
+
+------------------------------------------------------------------------------
+  CYCLE 5  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 6  [BEGIN]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  -> bank 21, slot 0  | dram_addr=0x0a04  dram_content=0xdeadc0de  | fetched_data=0xdeadc0de  ready @cycle 6
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T01 #2 global.ld.dram2sram   shmem=0x0054  abs=0x0054  tbo=0x0000  (issued @0, completed @6)  | dram_addr=0x0a04
+
+------------------------------------------------------------------------------
+  CYCLE 6  [END]
+------------------------------------------------------------------------------
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+------------------------------------------------------------------------------
+Completions:
+{'txn_id': 1, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 5, 'thread_id': 0, 'thread_block_offset_effective': 0, 'dram_addr': 2560, 'shmem_addr': 80, 'absolute_shmem_addr': 80, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 0: issued AXI read @0xa00, response due cycle 5', 'cycle 5: AXI read response -> AXI Bus Queue', 'cycle 5: AXI Bus Queue -> SMEM bank 20, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 0: issued AXI read @0xa00, response due cycle 5
+    cycle 5: AXI read response -> AXI Bus Queue
+    cycle 5: AXI Bus Queue -> SMEM bank 20, slot 0
+{'txn_id': 2, 'txn_type': 'global.ld.dram2sram', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 6, 'thread_id': 1, 'thread_block_offset_effective': 0, 'dram_addr': 2564, 'shmem_addr': 84, 'absolute_shmem_addr': 84, 'read_data': None, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=1, tbo=0x0)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 1: issued AXI read @0xa04, response due cycle 6', 'cycle 6: AXI read response -> AXI Bus Queue', 'cycle 6: AXI Bus Queue -> SMEM bank 21, slot 0']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=1, tbo=0x0)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 1: issued AXI read @0xa04, response due cycle 6
+    cycle 6: AXI read response -> AXI Bus Queue
+    cycle 6: AXI Bus Queue -> SMEM bank 21, slot 0
+Completed in 7 cycles with dram_latency_cycles=5. Sub-batches: 1 (sizes: [2])
+
+==============================================================================
+== Global unit-test assertions
+==============================================================================
+test_global_ops_emit_miss_complete_in_compat_stage (__main__.TestGlobalCompatibilityStage.test_global_ops_emit_miss_complete_in_compat_stage) ... ok
+test_global_load_completion_metadata_is_populated (__main__.TestGlobalLoadDramToSram.test_global_load_completion_metadata_is_populated) ... ok
+test_global_load_missing_dram_key_loads_zero (__main__.TestGlobalLoadDramToSram.test_global_load_missing_dram_key_loads_zero) ... ok
+test_global_load_overwrites_existing_sram_value (__main__.TestGlobalLoadDramToSram.test_global_load_overwrites_existing_sram_value) ... ok
+test_global_load_per_thread_offset_targets_correct_slot (__main__.TestGlobalLoadDramToSram.test_global_load_per_thread_offset_targets_correct_slot)
+An global load that targets a non-trivial per-thread offset must be ... ok
+test_global_load_populates_sram_from_dram (__main__.TestGlobalLoadDramToSram.test_global_load_populates_sram_from_dram) ... ok
+test_global_load_respects_dram_latency (__main__.TestGlobalLoadDramToSram.test_global_load_respects_dram_latency) ... ok
+test_multiple_global_loads_pipeline_outstanding_requests (__main__.TestGlobalLoadDramToSram.test_multiple_global_loads_pipeline_outstanding_requests)
+Four global loads issued together should finish within roughly ... ok
+test_global_does_not_act_as_barrier_in_single_batch (__main__.TestGlobalMixedWithSync.test_global_does_not_act_as_barrier_in_single_batch)
+Regression guard: when issued together in one batch, a trailing ... ok
+test_global_ops_do_not_corrupt_interleaved_sh_ld_sh_st (__main__.TestGlobalMixedWithSync.test_global_ops_do_not_corrupt_interleaved_sh_ld_sh_st)
+An interleaved sequence maintains data integrity when each global ... ok
+test_global_store_then_global_load_round_trip (__main__.TestGlobalMixedWithSync.test_global_store_then_global_load_round_trip) ... ok
+test_global_store_commits_smem_value_to_dram (__main__.TestGlobalStoreSmemToDram.test_global_store_commits_smem_value_to_dram) ... ok
+test_global_store_completion_metadata_is_populated (__main__.TestGlobalStoreSmemToDram.test_global_store_completion_metadata_is_populated) ... ok
+test_global_store_from_uninitialized_smem_writes_zero (__main__.TestGlobalStoreSmemToDram.test_global_store_from_uninitialized_smem_writes_zero) ... ok
+test_global_store_per_thread_offset_reads_correct_slot (__main__.TestGlobalStoreSmemToDram.test_global_store_per_thread_offset_reads_correct_slot)
+Two threads with distinct block offsets must store the value that ... ok
+test_global_store_respects_dram_latency (__main__.TestGlobalStoreSmemToDram.test_global_store_respects_dram_latency) ... ok
+test_global_store_value_is_snapshotted_at_issue_time (__main__.TestGlobalStoreSmemToDram.test_global_store_value_is_snapshotted_at_issue_time)
+A subsequent ``sh.st`` to the same SMEM address must not mutate the ... ok
+test_multiple_global_stores_pipeline_and_preserve_values (__main__.TestGlobalStoreSmemToDram.test_multiple_global_stores_pipeline_and_preserve_values)
+Multiple global stores pipeline through the AXI write port and ... ok
+test_global_load_without_dram_addr_raises (__main__.TestGlobalTransactionValidation.test_global_load_without_dram_addr_raises) ... ok
+test_global_load_without_shmem_addr_raises (__main__.TestGlobalTransactionValidation.test_global_load_without_shmem_addr_raises) ... ok
+test_global_store_without_dram_addr_raises (__main__.TestGlobalTransactionValidation.test_global_store_without_dram_addr_raises) ... ok
+test_global_store_without_shmem_addr_raises (__main__.TestGlobalTransactionValidation.test_global_store_without_shmem_addr_raises) ... ok
+test_parses_global_ld_canonical (__main__.TestGlobalTxnTypeParsing.test_parses_global_ld_canonical) ... ok
+test_parses_global_load_dram_to_sram_verbose_alias (__main__.TestGlobalTxnTypeParsing.test_parses_global_load_dram_to_sram_verbose_alias) ... ok
+test_parses_global_st_canonical (__main__.TestGlobalTxnTypeParsing.test_parses_global_st_canonical) ... ok
+test_parses_global_store_shmem_to_dram_verbose_alias (__main__.TestGlobalTxnTypeParsing.test_parses_global_store_shmem_to_dram_verbose_alias) ... ok
+test_parses_ldglobal_alias (__main__.TestGlobalTxnTypeParsing.test_parses_ldglobal_alias) ... ok
+test_parses_stglobal_alias (__main__.TestGlobalTxnTypeParsing.test_parses_stglobal_alias) ... ok
+test_rejects_unknown_global_variant (__main__.TestGlobalTxnTypeParsing.test_rejects_unknown_global_variant) ... ok
+test_transaction_from_dict_accepts_ldglobal_alias (__main__.TestGlobalTxnTypeParsing.test_transaction_from_dict_accepts_ldglobal_alias) ... ok
+test_run_single_global_load (__main__.TestRunSingleSmemTransactionGlobal.test_run_single_global_load) ... ok
+test_run_single_global_store (__main__.TestRunSingleSmemTransactionGlobal.test_run_single_global_store) ... ok
+
+----------------------------------------------------------------------
+Ran 32 tests in 0.031s
+
+OK

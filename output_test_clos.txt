@@ -1,0 +1,64 @@
+
+================================================================================
+== test_clos.py  (2026-04-17T17:18:13)
+================================================================================
+
+============================================================
+Clos Network — Exhaustive Functional Test Suite
+============================================================
+
+============================================================
+[A] UNICAST — every bank to every thread (1024 combinations)
+============================================================
+  PASS: 1024/1024 unicast combinations passed
+
+============================================================
+[B] MULTICAST — representative destination patterns
+============================================================
+  PASS: bank0 -> [2 threads] — two threads, same egress group
+  PASS: bank1 -> [2 threads] — two threads, different egress groups
+  PASS: bank2 -> [4 threads] — four threads spread across 4 egresses
+  PASS: bank3 -> [8 threads] — eight threads, one per egress
+  PASS: bank5 -> [6 threads] — threads 0,1,4,8,20,31 (mixed groups)
+  PASS: bank10 -> [4 threads] — all threads in egress 0 (0-3)
+  PASS: bank15 -> [4 threads] — all threads in egress 7 (28-31)
+  PASS: bank20 -> [16 threads] — half the threads (even)
+  PASS: bank25 -> [16 threads] — half the threads (odd)
+  PASS: bank31 -> [31 threads] — 31 threads (all except thread 0)
+
+============================================================
+[B2] MULTICAST PROOF BY DECOMPOSITION
+     (a) all 16 subsets × 8 egress groups  = 120 tests
+     (b) all 256 cross-group combinations   = 256 tests
+============================================================
+  PASS (a) per-group: 120/120 passed
+  PASS (b) cross-group: 256/256 passed
+
+  By decomposition: if (a) and (b) both pass, ALL 2^32 destination
+  masks are guaranteed correct — no further testing needed.
+
+============================================================
+[C] BROADCAST — every bank sends to all 32 threads
+============================================================
+  PASS: 32/32 banks broadcast to all 32 threads correctly
+
+============================================================
+[D] ERROR PROPAGATION — error flits routed to correct thread
+============================================================
+  PASS: UNMAPPED  bank 0  -> thread 0
+  PASS: UNMAPPED  bank 7  -> thread 15
+  PASS: UNMAPPED  bank 15 -> thread 31
+  PASS: ACCESS    bank 0  -> thread 7
+  PASS: ACCESS    bank 31 -> thread 24
+
+============================================================
+[E] MSHR MERGE — two threads request same line, one multicast response
+============================================================
+  PASS: bank0 addr=0x0020, threads 3 and 5 both received 0xCAFEBABE
+  PASS: bank7 addr=0x0040, threads 0 and 31 both received 0x11223344
+  PASS: bank15 addr=0x0080, threads 12 and 20 both received 0xDEADC0DE
+  PASS: bank31 addr=0x0100, threads 1 and 28 both received 0xFEEDFACE
+
+============================================================
+RESULT: ALL TESTS PASSED
+============================================================
