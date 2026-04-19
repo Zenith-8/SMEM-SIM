@@ -46,18 +46,61 @@ from main import (
     SmemArbiter,
     Transaction,
     TxnType,
-    _expand_thread_offsets_to_num_threads,
     load_smem_config,
 )
 
 
 NUM_THREADS_PER_WARP: int = 32
 WORD_BYTES: int = 4
+THREAD_BLOCK_SIZE_BYTES: int = NUM_THREADS_PER_WARP * WORD_BYTES
 DEFAULT_CHAIN_LENGTH: int = 8
 INTERLEAVED_CHAIN_PAIRS: int = 8
 
 COMPUTE_XOR_MASK: int = 0x0000_ABCD
 SH_ST_SEED: int = 0xD000_0000
+
+
+def _tb_slots(*tbids: Optional[int]) -> Tuple[Optional[int], ...]:
+    slots = list(tbids[:4])
+    while len(slots) < 4:
+        slots.append(None)
+    return tuple(slots)
+
+
+def _tb_kwargs(
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, object]:
+    return {
+        "thread_block_id": int(thread_block_id),
+        "resident_thread_block_ids": tuple(
+            resident_thread_block_ids
+            if resident_thread_block_ids is not None
+            else _tb_slots(int(thread_block_id))
+        ),
+        "thread_block_done_bits": [1] if done else [0],
+    }
+
+
+def _tb_txn(
+    txn_type: TxnType,
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+    **kwargs: object,
+) -> Transaction:
+    return Transaction(
+        txn_type=txn_type,
+        **kwargs,
+        **_tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        ),
+    )
 
 
 @dataclass
@@ -97,15 +140,16 @@ def _build_sim(
     cfg = load_smem_config()
     kwargs = cfg.to_sim_kwargs()
     kwargs["num_threads"] = int(num_threads)
-    kwargs["thread_block_offsets"] = _expand_thread_offsets_to_num_threads(
-        kwargs.get("thread_block_offsets"), int(num_threads)
+    kwargs.pop("thread_block_offsets", None)
+    kwargs["thread_block_size_bytes"] = int(
+        kwargs.get("thread_block_size_bytes") or THREAD_BLOCK_SIZE_BYTES
     )
     kwargs["verbose"] = bool(verbose)
     sim = ShmemFunctionalSimulator(**kwargs)
 
     if preload_words:
         for shmem_addr, value in preload_words.items():
-            probe = Transaction(txn_type=TxnType.SH_LD, shmem_addr=int(shmem_addr))
+            probe = _tb_txn(TxnType.SH_LD, shmem_addr=int(shmem_addr))
             absolute = sim._absolute_smem_addr(probe)
             bank, slot = sim._address_crossbar(
                 absolute, sim._effective_thread_block_offset(probe)
@@ -123,8 +167,8 @@ def _build_sh_ld_instruction(sequence_index: int) -> WarpInstruction:
         name=f"sh.ld#{sequence_index}",
         txn_type=TxnType.SH_LD,
         transactions=[
-            Transaction(
-                txn_type=TxnType.SH_LD,
+            _tb_txn(
+                TxnType.SH_LD,
                 thread_id=lane,
                 shmem_addr=lane * WORD_BYTES,
             )
@@ -139,8 +183,8 @@ def _build_sh_st_instruction(sequence_index: int) -> WarpInstruction:
         name=f"sh.st#{sequence_index}",
         txn_type=TxnType.SH_ST,
         transactions=[
-            Transaction(
-                txn_type=TxnType.SH_ST,
+            _tb_txn(
+                TxnType.SH_ST,
                 thread_id=lane,
                 shmem_addr=lane * WORD_BYTES,
                 write_data=(SH_ST_SEED + sequence_index * 0x100 + lane)

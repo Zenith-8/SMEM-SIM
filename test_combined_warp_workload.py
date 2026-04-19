@@ -14,10 +14,11 @@ Kernel shape (per warp, 32 threads, one warp-wide instruction at a time):
     3.  sh.ld                (read the derived value back, e.g. reduction feed)
     4.  global.st.smem2dram  (stream the final tile back out to DRAM)
 
-Warp 0 uses thread_block_offset=0x000 and thread_ids 0..31.
-Warp 1 uses thread_block_offset=0x080 (32 words) and thread_ids 32..63, so its
-XOR-mapped bank assignment differs from warp 0's and the two warps can overlap
-in the arbiter without stepping on each other when they pipeline.
+Warp 0 uses resident thread_block_id=0 and thread_ids 0..31.
+Warp 1 uses resident thread_block_id=1 and thread_ids 32..63; with
+``thread_block_size_bytes = 0x80`` this preserves the same effective SMEM
+spacing as the old 0x000 / 0x080 offset layout while moving the workload onto
+the new resident-TBID path.
 
 The same traffic is also driven through ``LockupFreeCacheStage`` (the real
 DCache) in parallel, so we can report both cycle counts side-by-side, which is
@@ -44,7 +45,6 @@ from main import (
     SmemArbiter,
     Transaction,
     TxnType,
-    _expand_thread_offsets_to_num_threads,
     load_smem_config,
 )
 from test_dcache_and_smem import _load_dcache_symbols
@@ -69,8 +69,9 @@ WARP_COUNT: int = 2
 TOTAL_THREADS: int = NUM_THREADS_PER_WARP * WARP_COUNT
 
 WORD_BYTES: int = 4
-WARP0_TBO: int = 0x000
-WARP1_TBO: int = 0x080
+THREAD_BLOCK_SIZE_BYTES: int = NUM_THREADS_PER_WARP * WORD_BYTES
+WARP0_TBID: int = 0
+WARP1_TBID: int = 1
 SMEM_SLOT_STRIDE_BYTES: int = WORD_BYTES
 DRAM_A_BASE: int = 0x0001_0000
 DRAM_B_BASE: int = 0x0002_0000
@@ -81,6 +82,12 @@ DCACHE_LINE_STRIDE_SLOTS: int = 1
 DRAM_SEED_WARP0: int = 0xA000_0000
 DRAM_SEED_WARP1: int = 0xB000_0000
 COMPUTE_XOR_MASK: int = 0x0000_ABCD
+RESIDENT_THREAD_BLOCK_IDS: Tuple[Optional[int], ...] = (
+    WARP0_TBID,
+    WARP1_TBID,
+    None,
+    None,
+)
 
 _DCACHE_NUM_BANKS = int(DCACHE_NUM_BANKS)
 _DCACHE_NUM_SETS = int(DCACHE_NUM_SETS)
@@ -107,7 +114,7 @@ class WarpProgram:
 
     warp_id: int
     thread_id_base: int
-    thread_block_offset: int
+    thread_block_id: int
     instructions: List[WarpInstruction] = field(default_factory=list)
 
 
@@ -161,22 +168,22 @@ def _build_warp_program(
     *,
     warp_id: int,
     thread_id_base: int,
-    thread_block_offset: int,
+    thread_block_id: int,
     dram_in_base: int,
     dram_out_base: int,
 ) -> WarpProgram:
     """
     Build the 4-instruction program for a single 32-thread warp.
 
-    Each per-thread transaction uses a per-thread SMEM offset of ``lane * 4``
-    (relative to the warp's ``thread_block_offset``), giving no intra-warp
-    bank conflicts at the XOR-mapped crossbar.  DRAM slots are per-lane too,
-    so global-memory traffic pipelines without aliasing.
+    Each per-thread transaction uses a per-thread relative SMEM offset of
+    ``lane * 4`` within the resident SMEM slot assigned to ``thread_block_id``,
+    giving no intra-warp bank conflicts at the XOR-mapped crossbar. DRAM slots
+    are per-lane too, so global-memory traffic pipelines without aliasing.
     """
     program = WarpProgram(
         warp_id=warp_id,
         thread_id_base=thread_id_base,
-        thread_block_offset=thread_block_offset,
+        thread_block_id=thread_block_id,
     )
 
     global_load = WarpInstruction(
@@ -186,7 +193,9 @@ def _build_warp_program(
             Transaction(
                 txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                 thread_id=thread_id_base + lane,
-                thread_block_offset=thread_block_offset,
+                thread_block_id=thread_block_id,
+                resident_thread_block_ids=RESIDENT_THREAD_BLOCK_IDS,
+                thread_block_done_bits=[0],
                 shmem_addr=lane * SMEM_SLOT_STRIDE_BYTES,
                 dram_addr=dram_in_base + (lane * WORD_BYTES),
             )
@@ -201,7 +210,9 @@ def _build_warp_program(
             Transaction(
                 txn_type=TxnType.SH_ST,
                 thread_id=thread_id_base + lane,
-                thread_block_offset=thread_block_offset,
+                thread_block_id=thread_block_id,
+                resident_thread_block_ids=RESIDENT_THREAD_BLOCK_IDS,
+                thread_block_done_bits=[0],
                 shmem_addr=lane * SMEM_SLOT_STRIDE_BYTES,
                 write_data=(thread_id_base + lane) ^ COMPUTE_XOR_MASK,
             )
@@ -216,7 +227,9 @@ def _build_warp_program(
             Transaction(
                 txn_type=TxnType.SH_LD,
                 thread_id=thread_id_base + lane,
-                thread_block_offset=thread_block_offset,
+                thread_block_id=thread_block_id,
+                resident_thread_block_ids=RESIDENT_THREAD_BLOCK_IDS,
+                thread_block_done_bits=[0],
                 shmem_addr=lane * SMEM_SLOT_STRIDE_BYTES,
             )
             for lane in range(NUM_THREADS_PER_WARP)
@@ -230,7 +243,9 @@ def _build_warp_program(
             Transaction(
                 txn_type=TxnType.GLOBAL_ST_SMEM_TO_DRAM,
                 thread_id=thread_id_base + lane,
-                thread_block_offset=thread_block_offset,
+                thread_block_id=thread_block_id,
+                resident_thread_block_ids=RESIDENT_THREAD_BLOCK_IDS,
+                thread_block_done_bits=[0],
                 shmem_addr=lane * SMEM_SLOT_STRIDE_BYTES,
                 dram_addr=dram_out_base + (lane * WORD_BYTES),
             )
@@ -246,14 +261,14 @@ def _build_both_warp_programs() -> Tuple[WarpProgram, WarpProgram]:
     warp0 = _build_warp_program(
         warp_id=0,
         thread_id_base=0,
-        thread_block_offset=WARP0_TBO,
+        thread_block_id=WARP0_TBID,
         dram_in_base=DRAM_A_BASE,
         dram_out_base=DRAM_OUT_A_BASE,
     )
     warp1 = _build_warp_program(
         warp_id=1,
         thread_id_base=NUM_THREADS_PER_WARP,
-        thread_block_offset=WARP1_TBO,
+        thread_block_id=WARP1_TBID,
         dram_in_base=DRAM_B_BASE,
         dram_out_base=DRAM_OUT_B_BASE,
     )
@@ -277,14 +292,13 @@ def _build_dram_init(
 
 
 def _build_smem_simulator(dram_init: Dict[int, int]) -> ShmemFunctionalSimulator:
-    """Build the SMEM simulator using .config defaults with per-warp offsets."""
+    """Build the SMEM simulator using .config defaults with resident TBIDs."""
     cfg = load_smem_config()
     kwargs = cfg.to_sim_kwargs()
     kwargs["num_threads"] = TOTAL_THREADS
-    kwargs["thread_block_offsets"] = _expand_thread_offsets_to_num_threads(
-        {tid: WARP0_TBO for tid in range(0, NUM_THREADS_PER_WARP)}
-        | {tid: WARP1_TBO for tid in range(NUM_THREADS_PER_WARP, TOTAL_THREADS)},
-        TOTAL_THREADS,
+    kwargs.pop("thread_block_offsets", None)
+    kwargs["thread_block_size_bytes"] = int(
+        kwargs.get("thread_block_size_bytes") or THREAD_BLOCK_SIZE_BYTES
     )
     kwargs["verbose"] = True
     return ShmemFunctionalSimulator(dram_init=dram_init, **kwargs)
@@ -371,7 +385,7 @@ def _dcache_slot_address(slot_index: int, *, warp_id: int) -> int:
     Map a per-warp (lane, warp_id) pair onto a unique, bank-balanced dcache address.
 
     Warp 0 and warp 1 use disjoint set_index ranges so they address different
-    cachelines (analogous to the per-warp thread_block_offset in the SMEM model).
+    cachelines (analogous to the per-warp resident thread-block slot in the SMEM model).
     """
     bank_id = slot_index % _DCACHE_NUM_BANKS
     set_index_offset = (slot_index // _DCACHE_NUM_BANKS) % _DCACHE_NUM_SETS
@@ -750,11 +764,12 @@ def demo_combined_warp_workload() -> None:
     """
     print("\n=== TEST: Combined Warp Workload (2 warps x 4 back-to-back instructions) ===")
     print(
-        f"Warp 0: threads {0}..{NUM_THREADS_PER_WARP - 1}, tbo=0x{WARP0_TBO:04x}"
+        f"Warp 0: threads {0}..{NUM_THREADS_PER_WARP - 1}, "
+        f"tbid={WARP0_TBID}, smem_offset=0x{WARP0_TBID * THREAD_BLOCK_SIZE_BYTES:04x}"
     )
     print(
         f"Warp 1: threads {NUM_THREADS_PER_WARP}..{TOTAL_THREADS - 1}, "
-        f"tbo=0x{WARP1_TBO:04x}"
+        f"tbid={WARP1_TBID}, smem_offset=0x{WARP1_TBID * THREAD_BLOCK_SIZE_BYTES:04x}"
     )
     print(
         f"Per-warp program: global.ld.dram2sram -> sh.st -> sh.ld -> global.st.smem2dram"

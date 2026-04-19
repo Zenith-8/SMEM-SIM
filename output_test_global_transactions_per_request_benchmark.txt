@@ -1,0 +1,23 @@
+
+================================================================================
+== test_global_transactions_per_request_benchmark.py  (2026-04-19T00:54:29)
+================================================================================
+
+SAXPY Global Transactions per Global Request (DCache vs SMEM)
+-------------------------------------------------------------
+XReuse | D$ Txn/Req | SMEM Txn/Req | D$ DRAM | SMEM DRAM | D$ Cyc | SMEM Cyc
+--------------------------------------------------------------------------------
+     1 |    0.16699 |      1.00000 |     513 |      3072 |   4703 |     3078
+     2 |    0.16732 |      1.00000 |     514 |      3072 |   4734 |     3078
+     4 |    0.16797 |      1.00000 |     516 |      3072 |   4860 |     3078
+     8 |    0.16927 |      1.00000 |     520 |      3072 |   5112 |     3078
+    16 |    0.17188 |      1.00000 |     528 |      3072 |   5616 |     3078
+    32 |    0.17708 |      1.00000 |     544 |      3072 |   6624 |     3078
+    64 |    0.18750 |      1.00000 |     576 |      3072 |   6592 |     3078
+   128 |    0.20833 |      1.00000 |     640 |      3072 |   6528 |     3078
+   256 |    0.25000 |      1.00000 |     768 |      3072 |   6400 |     3078
+   512 |    0.33333 |      1.00000 |    1024 |      3072 |   6144 |     3078
+
+CSV saved to:   /home/shay/a/viswann/SMEM-SIM/global_transactions_per_request.csv
+Report saved to:/home/shay/a/viswann/SMEM-SIM/global_transactions_per_request_report.txt
+Plot saved to:  /home/shay/a/viswann/SMEM-SIM/global_transactions_per_request_plot.png

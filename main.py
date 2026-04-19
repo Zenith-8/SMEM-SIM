@@ -5,13 +5,20 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 import re
-from typing import Any, Deque, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Deque, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
 
 import sys
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
     import tomli as tomllib
+
+from clos_network_sim import (
+    ClosNetwork,
+    ERR_GOOD as CLOS_ERR_GOOD,
+    Flit as ClosFlit,
+    NUM_THREADS as CLOS_NUM_THREADS,
+)
 
 
 class TxnType(str, Enum):
@@ -70,6 +77,9 @@ class Transaction:
     write_data: Optional[int] = None
     thread_id: int = 0
     thread_block_offset: Optional[int] = None
+    thread_block_id: Optional[int] = None
+    resident_thread_block_ids: Optional[Tuple[Optional[int], ...]] = None
+    thread_block_done_bits: Any = None
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "Transaction":
@@ -96,16 +106,35 @@ class Transaction:
         else:
             txn_type = TxnType.from_user_value(str(raw_txn_type))
 
+        resident_thread_block_ids = payload.get(
+            "resident_thread_block_ids",
+            payload.get("tbids", payload.get("smem_tbids")),
+        )
+        if resident_thread_block_ids is not None:
+            resident_thread_block_ids = tuple(
+                int(tbid) if tbid is not None else None
+                for tbid in resident_thread_block_ids
+            )
+
         return cls(
             txn_type=txn_type,
             dram_addr=payload.get("dram_addr"),
             shmem_addr=payload.get("shmem_addr"),
             write_data=payload.get("write_data"),
             thread_id=int(payload.get("thread_id", 0)),
-            thread_block_offset=(
-                int(payload["thread_block_offset"])
-                if payload.get("thread_block_offset") is not None
-                else None
+            thread_block_id=(
+                int(payload["thread_block_id"])
+                if payload.get("thread_block_id") is not None
+                else (
+                    int(payload["tbid"])
+                    if payload.get("tbid") is not None
+                    else None
+                )
+            ),
+            resident_thread_block_ids=resident_thread_block_ids,
+            thread_block_done_bits=payload.get(
+                "thread_block_done_bits",
+                payload.get("done_bits"),
             ),
         )
 
@@ -121,6 +150,8 @@ class Completion:
     cycle_issued: int
     cycle_completed: int
     thread_id: int
+    thread_block_id: Optional[int]
+    smem_block_id: Optional[int]
     thread_block_offset_effective: int
     dram_addr: Optional[int]
     shmem_addr: Optional[int]
@@ -143,15 +174,14 @@ class SmemSimulatorConfig:
     dram_latency_cycles: int = 1
     arbiter_issue_width: int = 4
     num_threads: int = 1
-    thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None
+    thread_block_size_bytes: Optional[int] = None
+    read_crossbar_pipeline_cycles: int = 3
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "SmemSimulatorConfig":
         """
         Construct a SmemSimulatorConfig instance from a dictionary payload.
-        
-        Normalizes thread block offsets into a standard dictionary format if provided.
-        
+
         Args:
             payload: Dictionary containing configuration parameters.
             
@@ -159,26 +189,10 @@ class SmemSimulatorConfig:
             A new SmemSimulatorConfig instance.
             
         Raises:
-            TypeError: If the payload is not a dict, or if thread_block_offsets is of an invalid type.
+            TypeError: If the payload is not a dict.
         """
         if not isinstance(payload, dict):
             raise TypeError("SMEM config payload must be a dict.")
-
-        offsets = payload.get("thread_block_offsets")
-        if isinstance(offsets, dict):
-            normalized_offsets: Dict[int, int] = {
-                int(thread_id): int(offset) for thread_id, offset in offsets.items()
-            }
-        elif isinstance(offsets, list):
-            normalized_offsets = [int(offset) for offset in offsets]
-        elif isinstance(offsets, tuple):
-            normalized_offsets = tuple(int(offset) for offset in offsets)
-        elif offsets is None:
-            normalized_offsets = None
-        else:
-            raise TypeError(
-                "thread_block_offsets in config must be dict/list/tuple or omitted."
-            )
 
         return cls(
             num_banks=int(payload.get("num_banks", 32)),
@@ -186,7 +200,17 @@ class SmemSimulatorConfig:
             dram_latency_cycles=int(payload.get("dram_latency_cycles", 1)),
             arbiter_issue_width=int(payload.get("arbiter_issue_width", 4)),
             num_threads=int(payload.get("num_threads", 1)),
-            thread_block_offsets=normalized_offsets,
+            thread_block_size_bytes=(
+                int(payload["thread_block_size_bytes"])
+                if payload.get("thread_block_size_bytes") is not None
+                else None
+            ),
+            read_crossbar_pipeline_cycles=int(
+                payload.get(
+                    "read_crossbar_pipeline_cycles",
+                    READ_CROSSBAR_PIPELINE_CYCLES,
+                )
+            ),
         )
 
     @classmethod
@@ -223,7 +247,8 @@ class SmemSimulatorConfig:
             "dram_latency_cycles": int(self.dram_latency_cycles),
             "arbiter_issue_width": int(self.arbiter_issue_width),
             "num_threads": int(self.num_threads),
-            "thread_block_offsets": self.thread_block_offsets,
+            "thread_block_size_bytes": self.thread_block_size_bytes,
+            "read_crossbar_pipeline_cycles": int(self.read_crossbar_pipeline_cycles),
         }
 
 
@@ -268,6 +293,9 @@ class _CompatDMemResponse:
 
 _DMEM_RESPONSE_CLS = _SimDMemResponse or _CompatDMemResponse
 
+DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS = 4
+READ_CROSSBAR_PIPELINE_CYCLES = 3
+
 
 class ShmemFunctionalSimulator:
     """
@@ -275,12 +303,12 @@ class ShmemFunctionalSimulator:
     - Shared memory arbiter
     - SMEM read/write queues
     - SMEM read/write controllers
+    - Write crossbar (direct XOR-mapped bank/slot routing)
+    - Read crossbar (3-cycle pipelined Clos network)
     - AXI memory read/write queues
     - XOR map
     - Address crossbar
     - Banks
-
-    Data crossbar is intentionally NOT modeled.
 
     Bank conflicts are handled by splitting conflicting requests across cycles
     while preserving original transaction issue order.
@@ -296,6 +324,8 @@ class ShmemFunctionalSimulator:
         arbiter_issue_width: int = 4,
         num_threads: int = 1,
         thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+        thread_block_size_bytes: Optional[int] = None,
+        read_crossbar_pipeline_cycles: int = READ_CROSSBAR_PIPELINE_CYCLES,
         verbose: bool = False,
     ) -> None:
         """
@@ -308,7 +338,8 @@ class ShmemFunctionalSimulator:
             dram_latency_cycles: Latency of DRAM accesses in cycles.
             arbiter_issue_width: Number of requests the arbiter can issue per cycle.
             num_threads: Total number of threads.
-            thread_block_offsets: Offsets for each thread block.
+            thread_block_size_bytes: Size, in bytes, of one resident SMEM thread-block slot.
+            read_crossbar_pipeline_cycles: Latency, in cycles, of the pipelined Clos read crossbar.
             verbose: When True, print per-cycle state summaries during step().
         """
         if num_banks <= 0:
@@ -321,6 +352,10 @@ class ShmemFunctionalSimulator:
             raise ValueError("arbiter_issue_width must be > 0.")
         if num_threads <= 0:
             raise ValueError("num_threads must be > 0.")
+        if thread_block_size_bytes is not None and int(thread_block_size_bytes) <= 0:
+            raise ValueError("thread_block_size_bytes must be > 0 when provided.")
+        if int(read_crossbar_pipeline_cycles) <= 0:
+            raise ValueError("read_crossbar_pipeline_cycles must be > 0.")
 
         self.verbose = verbose
         self.num_banks = num_banks
@@ -329,10 +364,31 @@ class ShmemFunctionalSimulator:
         self.dram_latency_cycles = dram_latency_cycles
         self.arbiter_issue_width = arbiter_issue_width
         self.num_threads = num_threads
-        self.thread_block_offsets = self._normalize_thread_offsets(
-            num_threads=num_threads,
-            thread_block_offsets=thread_block_offsets,
+        if thread_block_offsets is not None:
+            raise ValueError(
+                "Legacy thread_block_offsets are no longer supported. "
+                "Use thread_block_size_bytes plus thread_block_id/"
+                "resident_thread_block_ids."
+            )
+        self.thread_block_size_bytes = (
+            int(thread_block_size_bytes)
+            if thread_block_size_bytes is not None
+            else None
         )
+        self.read_crossbar_pipeline_cycles = int(read_crossbar_pipeline_cycles)
+        self.resident_thread_block_ids: List[Optional[int]] = [
+            None
+            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+        ]
+        self.resident_thread_block_done_bits: List[Any] = [
+            None
+            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+        ]
+        self.resident_thread_block_done: List[bool] = [
+            False
+            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+        ]
+        self.read_crossbar = ClosNetwork()
 
         self.cycle = 0
         self.cycle_count = 0
@@ -364,10 +420,11 @@ class ShmemFunctionalSimulator:
         # The ``_run_axi_bus`` step services at most ONE head entry per cycle,
         # modeling the single-port nature of the AXI bus and serializing the
         # two directions against each other.
-        self.axi_bus_queue: Deque[Tuple[Any, ...]] = deque()
+        self.axi_bus_queue: Deque[Dict[str, Any]] = deque()
 
         self.pending_dram_reads: List[Tuple[int, Dict[str, Any], int]] = []
         self.pending_dram_writes: List[Tuple[int, Dict[str, Any], int, int]] = []
+        self.pending_read_crossbar_deliveries: List[Dict[str, Any]] = []
 
         self.completions: List[Completion] = []
 
@@ -390,6 +447,7 @@ class ShmemFunctionalSimulator:
             "txn_id": self._next_txn_id,
             "txn": transaction,
             "cycle_issued": self.cycle,
+            "ready_cycle": self.cycle,
             "trace": [
                 f"cycle {self.cycle}: accepted by simulator input "
                 f"(thread={thread_id}, tbo=0x{effective_offset:x})"
@@ -398,6 +456,251 @@ class ShmemFunctionalSimulator:
         self._next_txn_id += 1
         self.input_queue.append(tagged)
         return tagged["txn_id"]
+
+    def _enqueue_for_next_cycle(self, queue: Deque[Dict[str, Any]], tagged: Dict[str, Any]) -> None:
+        """
+        Enqueue a transaction into a downstream pipeline queue.
+
+        Internal queue hops consume one cycle: an entry produced during cycle
+        ``N`` cannot be consumed by the downstream stage until cycle ``N + 1``.
+        """
+        tagged["ready_cycle"] = self.cycle + 1
+        queue.append(tagged)
+
+    @staticmethod
+    def _queue_head_ready(queue: Deque[Dict[str, Any]], cycle: int) -> bool:
+        """
+        Check whether the queue head is eligible to be consumed this cycle.
+        """
+        if not queue:
+            return False
+        return int(queue[0].get("ready_cycle", cycle)) <= int(cycle)
+
+    @staticmethod
+    def _normalize_resident_thread_block_ids(
+        resident_thread_block_ids: Sequence[Optional[int]],
+    ) -> Tuple[Optional[int], ...]:
+        """
+        Normalize the resident SMEM thread-block ID vector to the fixed slot count.
+        """
+        normalized = tuple(
+            int(tbid) if tbid is not None else None
+            for tbid in resident_thread_block_ids
+        )
+        if len(normalized) != DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS:
+            raise ValueError(
+                f"resident_thread_block_ids must contain exactly "
+                f"{DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS} entries."
+            )
+        return normalized
+
+    @staticmethod
+    def _done_bits_all_one(done_bits: Any) -> bool:
+        """
+        Determine whether a thread block's done bits indicate completion.
+        """
+        if done_bits is None:
+            return False
+
+        if isinstance(done_bits, str):
+            bits = done_bits.strip().lower().replace("_", "")
+            if bits.startswith("0b"):
+                bits = bits[2:]
+            return bool(bits) and all(ch == "1" for ch in bits)
+
+        if isinstance(done_bits, int):
+            if done_bits < 0:
+                raise ValueError("done bits must be non-negative.")
+            bits = bin(done_bits)[2:]
+            return bool(bits) and all(ch == "1" for ch in bits)
+
+        if hasattr(done_bits, "bin"):
+            bits = str(done_bits.bin)
+            return bool(bits) and all(ch == "1" for ch in bits)
+
+        if isinstance(done_bits, Iterable):
+            bits_list = list(done_bits)
+            return bool(bits_list) and all(bool(bit) for bit in bits_list)
+
+        return bool(done_bits)
+
+    def _find_resident_thread_block_slot(self, thread_block_id: int) -> Optional[int]:
+        """
+        Locate the resident SMEM slot currently assigned to ``thread_block_id``.
+        """
+        for slot_idx, resident_tbid in enumerate(self.resident_thread_block_ids):
+            if resident_tbid == int(thread_block_id):
+                return slot_idx
+        return None
+
+    def _update_resident_thread_block_state(self, txn: Transaction) -> None:
+        """
+        Synchronize the 4-slot resident thread-block table from the transaction metadata.
+
+        Each slot retains its SMEM allocation until the *currently resident*
+        thread block reports all-one done bits. Only then may a newly supplied
+        thread block ID replace that slot.
+        """
+        resident_ids = txn.resident_thread_block_ids
+        if resident_ids is not None:
+            incoming_ids = self._normalize_resident_thread_block_ids(resident_ids)
+            for slot_idx, incoming_tbid in enumerate(incoming_ids):
+                resident_tbid = self.resident_thread_block_ids[slot_idx]
+                if resident_tbid == incoming_tbid:
+                    continue
+
+                if resident_tbid is None or self.resident_thread_block_done[slot_idx]:
+                    self.resident_thread_block_ids[slot_idx] = incoming_tbid
+                    self.resident_thread_block_done_bits[slot_idx] = None
+                    self.resident_thread_block_done[slot_idx] = False
+
+        if txn.thread_block_id is None or txn.thread_block_done_bits is None:
+            return
+
+        slot_idx = self._find_resident_thread_block_slot(int(txn.thread_block_id))
+        if slot_idx is None:
+            return
+
+        self.resident_thread_block_done_bits[slot_idx] = txn.thread_block_done_bits
+        self.resident_thread_block_done[slot_idx] = self._done_bits_all_one(
+            txn.thread_block_done_bits
+        )
+
+    def _smem_block_id_for_transaction(self, txn: Transaction) -> Optional[int]:
+        """
+        Resolve the resident SMEM slot assigned to a transaction's thread block.
+        """
+        if txn.thread_block_id is None:
+            return None
+
+        self._update_resident_thread_block_state(txn)
+        slot_idx = self._find_resident_thread_block_slot(int(txn.thread_block_id))
+        if slot_idx is not None:
+            return slot_idx
+
+        if txn.resident_thread_block_ids is not None:
+            requested_ids = self._normalize_resident_thread_block_ids(
+                txn.resident_thread_block_ids
+            )
+            if int(txn.thread_block_id) in requested_ids:
+                requested_slot = requested_ids.index(int(txn.thread_block_id))
+                resident_tbid = self.resident_thread_block_ids[requested_slot]
+                resident_done = self.resident_thread_block_done[requested_slot]
+                raise ValueError(
+                    f"thread_block_id {int(txn.thread_block_id)} cannot take SMEM "
+                    f"slot {requested_slot}: slot is still occupied by "
+                    f"thread_block_id {resident_tbid} "
+                    f"(done={int(resident_done)})."
+                )
+
+        return None
+
+    @staticmethod
+    def _clos_thread_lane(thread_id: int) -> int:
+        """
+        Map the simulator thread id onto one of the 32 Clos network thread lanes.
+        """
+        return int(thread_id) % int(CLOS_NUM_THREADS)
+
+    def _write_crossbar_target(self, txn: Transaction) -> Tuple[int, int, int]:
+        """
+        Route a write-side transaction through the simple write crossbar.
+
+        The write crossbar is a direct mapping: the XOR-based address crossbar
+        selects the bank/slot, and the write is applied at that location.
+        """
+        absolute = self._absolute_smem_addr(txn)
+        bank, bank_slot = self._address_crossbar(
+            absolute, self._effective_thread_block_offset(txn)
+        )
+        return absolute, bank, bank_slot
+
+    def _launch_read_crossbar(self, tagged: Dict[str, Any], bank: int, value: int) -> None:
+        """
+        Launch a load response into the 3-cycle pipelined Clos read crossbar.
+        """
+        txn: Transaction = tagged["txn"]
+        lane = self._clos_thread_lane(int(txn.thread_id))
+        ready_cycle = self.cycle + int(self.read_crossbar_pipeline_cycles)
+        self.pending_read_crossbar_deliveries.append(
+            {
+                "ready_cycle": ready_cycle,
+                "tagged": tagged,
+                "bank": int(bank),
+                "lane": lane,
+                "thread_id": int(txn.thread_id),
+                "value": int(value) & self.word_mask,
+            }
+        )
+        tagged["trace"].append(
+            f"cycle {self.cycle}: launched into Clos read crossbar "
+            f"(bank {int(bank)} -> lane {lane}), ready cycle {ready_cycle}"
+        )
+
+    def _service_read_crossbar(self) -> None:
+        """
+        Retire any Clos-read-crossbar responses whose 3-cycle pipeline has completed.
+        """
+        if not self.pending_read_crossbar_deliveries:
+            return
+
+        ready_events: List[Dict[str, Any]] = []
+        next_pending: List[Dict[str, Any]] = []
+        for event in self.pending_read_crossbar_deliveries:
+            if int(event["ready_cycle"]) <= self.cycle:
+                ready_events.append(event)
+            else:
+                next_pending.append(event)
+        if not ready_events:
+            return
+
+        flits_from_banks: Dict[int, ClosFlit] = {}
+        for event in ready_events:
+            bank = int(event["bank"])
+            if bank in flits_from_banks:
+                raise RuntimeError(
+                    f"Clos read crossbar received more than one ready flit for bank {bank} "
+                    f"in cycle {self.cycle}."
+                )
+            flits_from_banks[bank] = ClosFlit.make(
+                dest_mask=(1 << int(event["lane"])),
+                data=int(event["value"]),
+                error=CLOS_ERR_GOOD,
+            )
+
+        deliveries = self.read_crossbar.send(flits_from_banks)
+        for event in ready_events:
+            lane = int(event["lane"])
+            thread_id = int(event["thread_id"])
+            tagged = event["tagged"]
+            rxs = deliveries.get(lane, [])
+            if not rxs:
+                raise RuntimeError(
+                    f"Clos read crossbar dropped delivery for thread {thread_id} "
+                    f"(lane {lane}) in cycle {self.cycle}."
+                )
+
+            data, error = rxs.pop(0)
+            if int(error) != int(CLOS_ERR_GOOD):
+                raise RuntimeError(
+                    f"Clos read crossbar returned error {error} for thread {thread_id} "
+                    f"in cycle {self.cycle}."
+                )
+
+            tagged["trace"].append(
+                f"cycle {self.cycle}: Clos read crossbar -> thread {thread_id} "
+                f"(lane {lane})"
+            )
+            self._complete(
+                tagged,
+                read_data=int(data) & self.word_mask,
+                note=(
+                    f"Read returned through {self.read_crossbar_pipeline_cycles}-cycle "
+                    f"Clos read crossbar."
+                ),
+            )
+
+        self.pending_read_crossbar_deliveries = next_pending
 
     def run(
         self, transactions: Iterable[Transaction | Dict[str, Any]]
@@ -457,6 +760,7 @@ class ShmemFunctionalSimulator:
         arbiter_banks_issued_this_cycle: Set[int] = set()
         banks_used_by_controllers_this_cycle: Set[int] = set()
 
+        self._service_read_crossbar()
         self._service_dram_events()
         self._run_shared_memory_arbiter(arbiter_banks_issued_this_cycle)
         self._run_smem_write_controller(banks_used_by_controllers_this_cycle)
@@ -499,6 +803,11 @@ class ShmemFunctionalSimulator:
             "dram": dict(self.dram),
             "sram_linear": dict(self.sram_linear),
             "banks": [dict(bank) for bank in self.banks],
+            "resident_thread_block_ids": list(self.resident_thread_block_ids),
+            "resident_thread_block_done": list(self.resident_thread_block_done),
+            "pending_read_crossbar_deliveries": [
+                dict(event) for event in self.pending_read_crossbar_deliveries
+            ],
             "completions": [asdict(c) for c in self.completions],
         }
 
@@ -566,10 +875,10 @@ class ShmemFunctionalSimulator:
             issued_count += 1
 
             if txn.txn_type in (TxnType.SH_LD, TxnType.GLOBAL_ST_SMEM_TO_DRAM):
-                self.smem_read_queue.append(tagged)
+                self._enqueue_for_next_cycle(self.smem_read_queue, tagged)
                 tagged["trace"].append(f"cycle {self.cycle}: arbiter -> SMEM Read Queue")
             else:
-                self.smem_write_queue.append(tagged)
+                self._enqueue_for_next_cycle(self.smem_write_queue, tagged)
                 tagged["trace"].append(
                     f"cycle {self.cycle}: arbiter -> SMEM Write Queue"
                 )
@@ -589,13 +898,12 @@ class ShmemFunctionalSimulator:
         """
         if not self.smem_read_queue:
             return
+        if not self._queue_head_ready(self.smem_read_queue, self.cycle):
+            return
 
         tagged = self.smem_read_queue[0]
         txn: Transaction = tagged["txn"]
-        absolute = self._absolute_smem_addr(txn)
-        bank, bank_slot = self._address_crossbar(
-            absolute, self._effective_thread_block_offset(txn)
-        )
+        _, bank, bank_slot = self._write_crossbar_target(txn)
 
         if bank in banks_used_this_cycle:
             tagged["trace"].append(
@@ -607,23 +915,26 @@ class ShmemFunctionalSimulator:
         banks_used_this_cycle.add(bank)
 
         if txn.txn_type == TxnType.SH_LD:
-            # Retrieve the value from the specific bank and slot, defaulting to 0 if uninitialized
+            # Read the bank-selected word, then return it through the pipelined Clos read crossbar.
             value = self.banks[bank].get(bank_slot, 0)
             tagged["trace"].append(
                 f"cycle {self.cycle}: SMEM Read Controller read bank {bank}, slot {bank_slot}"
             )
-            self._complete(
-                tagged,
-                read_data=value,
-                note="Data crossbar intentionally not modeled; value returned directly.",
-            )
+            self._launch_read_crossbar(tagged, bank, value)
             return
 
         if txn.txn_type == TxnType.GLOBAL_ST_SMEM_TO_DRAM:
             # Read the value from SMEM and enqueue an AXI write on the unified AXI bus.
             value = self.banks[bank].get(bank_slot, 0)
-            self.axi_bus_queue.append(
-                ("write_req", tagged, txn.dram_addr, value)
+            self._enqueue_for_next_cycle(
+                self.axi_bus_queue,
+                {
+                    "kind": "write_req",
+                    "tagged": tagged,
+                    "dram_addr": txn.dram_addr,
+                    "value": value,
+                    "ready_cycle": self.cycle,
+                },
             )
             tagged["trace"].append(
                 f"cycle {self.cycle}: SMEM Read Controller -> AXI Bus Queue (write_req)"
@@ -646,17 +957,16 @@ class ShmemFunctionalSimulator:
         """
         if not self.smem_write_queue:
             return
+        if not self._queue_head_ready(self.smem_write_queue, self.cycle):
+            return
 
         tagged = self.smem_write_queue[0]
         txn: Transaction = tagged["txn"]
-        absolute = self._absolute_smem_addr(txn)
+        absolute, bank, bank_slot = self._write_crossbar_target(txn)
 
         if txn.txn_type == TxnType.SH_ST:
             # Mask the write data to ensure it fits within the configured word size
             value = int(txn.write_data) & self.word_mask
-            bank, bank_slot = self._address_crossbar(
-                absolute, self._effective_thread_block_offset(txn)
-            )
 
             if bank in banks_used_this_cycle:
                 tagged["trace"].append(
@@ -670,7 +980,7 @@ class ShmemFunctionalSimulator:
             self.banks[bank][bank_slot] = value
             self.sram_linear[absolute] = value
             tagged["trace"].append(
-                f"cycle {self.cycle}: SH.ST -> bank {bank}, slot {bank_slot}"
+                f"cycle {self.cycle}: Write Crossbar -> bank {bank}, slot {bank_slot}"
             )
             self._complete(tagged, read_data=prior_value)
             return
@@ -710,15 +1020,15 @@ class ShmemFunctionalSimulator:
             return
 
         head = self.axi_bus_queue[0]
-        if head[0] != "read_resp":
+        if not self._queue_head_ready(self.axi_bus_queue, self.cycle):
+            return
+        if head["kind"] != "read_resp":
             return
 
-        _, tagged, value = head
+        tagged = head["tagged"]
+        value = head["value"]
         txn: Transaction = tagged["txn"]
-        absolute = self._absolute_smem_addr(txn)
-        bank, bank_slot = self._address_crossbar(
-            absolute, self._effective_thread_block_offset(txn)
-        )
+        absolute, bank, bank_slot = self._write_crossbar_target(txn)
 
         if bank in banks_used_this_cycle:
             tagged["trace"].append(
@@ -731,7 +1041,8 @@ class ShmemFunctionalSimulator:
         self.banks[bank][bank_slot] = value
         self.sram_linear[absolute] = value
         tagged["trace"].append(
-            f"cycle {self.cycle}: AXI Bus Queue -> SMEM bank {bank}, slot {bank_slot}"
+            f"cycle {self.cycle}: AXI Bus Queue -> Write Crossbar -> SMEM bank "
+            f"{bank}, slot {bank_slot}"
         )
         self._complete(tagged)
 
@@ -752,10 +1063,14 @@ class ShmemFunctionalSimulator:
             return
 
         head = self.axi_bus_queue[0]
-        if head[0] != "write_req":
+        if not self._queue_head_ready(self.axi_bus_queue, self.cycle):
+            return
+        if head["kind"] != "write_req":
             return
 
-        _, tagged, dram_addr, value = head
+        tagged = head["tagged"]
+        dram_addr = head["dram_addr"]
+        value = head["value"]
         self.axi_bus_queue.popleft()
         ready = self.cycle + self.dram_latency_cycles
         self.pending_dram_writes.append((ready, tagged, dram_addr, value))
@@ -776,7 +1091,15 @@ class ShmemFunctionalSimulator:
         next_pending_reads: List[Tuple[int, Dict[str, Any], int]] = []
         for ready_cycle, tagged, value in self.pending_dram_reads:
             if ready_cycle <= self.cycle:
-                self.axi_bus_queue.append(("read_resp", tagged, value))
+                self._enqueue_for_next_cycle(
+                    self.axi_bus_queue,
+                    {
+                        "kind": "read_resp",
+                        "tagged": tagged,
+                        "value": value,
+                        "ready_cycle": self.cycle,
+                    },
+                )
                 tagged["trace"].append(
                     f"cycle {self.cycle}: AXI read response -> AXI Bus Queue"
                 )
@@ -863,6 +1186,7 @@ class ShmemFunctionalSimulator:
             note: Optional note to attach to the completion record.
         """
         txn: Transaction = tagged["txn"]
+        smem_block_id = self._smem_block_id_for_transaction(txn)
         effective_offset = self._effective_thread_block_offset(txn)
         completion = Completion(
             txn_id=tagged["txn_id"],
@@ -871,6 +1195,12 @@ class ShmemFunctionalSimulator:
             cycle_issued=tagged["cycle_issued"],
             cycle_completed=self.cycle,
             thread_id=int(txn.thread_id),
+            thread_block_id=(
+                int(txn.thread_block_id)
+                if txn.thread_block_id is not None
+                else None
+            ),
+            smem_block_id=smem_block_id,
             thread_block_offset_effective=effective_offset,
             dram_addr=txn.dram_addr,
             shmem_addr=txn.shmem_addr,
@@ -906,14 +1236,15 @@ class ShmemFunctionalSimulator:
         Raises:
             ValueError: If the thread ID is out of range.
         """
-        if txn.thread_block_offset is not None:
-            return int(txn.thread_block_offset)
-        thread_id = int(txn.thread_id)
-        if thread_id < 0 or thread_id >= self.num_threads:
-            raise ValueError(
-                f"thread_id {thread_id} out of range for num_threads={self.num_threads}"
-            )
-        return self.thread_block_offsets[thread_id]
+        smem_block_id = self._smem_block_id_for_transaction(txn)
+        if smem_block_id is not None:
+            if self.thread_block_size_bytes is None:
+                raise ValueError(
+                    "thread_block_size_bytes must be configured when using "
+                    "thread_block_id-based SMEM residency."
+                )
+            return int(smem_block_id) * int(self.thread_block_size_bytes)
+        return 0
 
     def _has_pending_work(self) -> bool:
         """
@@ -930,6 +1261,7 @@ class ShmemFunctionalSimulator:
                 self.axi_bus_queue,
                 self.pending_dram_reads,
                 self.pending_dram_writes,
+                self.pending_read_crossbar_deliveries,
             )
         )
 
@@ -954,12 +1286,20 @@ class ShmemFunctionalSimulator:
         tbo = self._effective_thread_block_offset(txn)
         absolute = self._absolute_smem_addr(txn)
         bank, slot = self._address_crossbar(absolute, tbo)
+        smem_block_id = self._smem_block_id_for_transaction(txn)
+        ready_cycle = int(tagged.get("ready_cycle", self.cycle))
 
         line = (
             f"T{tid:02d} #{txn_id} {txn.txn_type.value:<20s}"
             f"  shmem=0x{addr:04x}  abs=0x{absolute:04x}  tbo=0x{tbo:04x}"
             f"  -> bank {bank:2d}, slot {slot}"
         )
+        if txn.thread_block_id is not None:
+            line += f"  | tbid={int(txn.thread_block_id)}"
+        if smem_block_id is not None:
+            line += f"  smem_block={smem_block_id}"
+        if ready_cycle > self.cycle:
+            line += f"  ready@{ready_cycle}"
 
         if txn.txn_type == TxnType.SH_ST and txn.write_data is not None:
             line += f"  | write_data=0x{int(txn.write_data) & self.word_mask:08x}"
@@ -988,6 +1328,14 @@ class ShmemFunctionalSimulator:
         print(f"\n{separator}")
         print(f"  CYCLE {self.cycle}  [{phase}]")
         print(separator)
+        resident_summary = ", ".join(
+            (
+                f"slot{slot_idx}=tbid:{resident_tbid}"
+                f"/done:{int(self.resident_thread_block_done[slot_idx])}"
+            )
+            for slot_idx, resident_tbid in enumerate(self.resident_thread_block_ids)
+        )
+        print(f"  Resident Thread Blocks: {resident_summary}")
 
         def _print_queue(
             label: str, items: Iterable[Any], extractor: Any
@@ -1019,15 +1367,18 @@ class ShmemFunctionalSimulator:
         if self.axi_bus_queue:
             print(f"  AXI Bus Queue ({len(self.axi_bus_queue)}):")
             for entry in self.axi_bus_queue:
-                kind = entry[0]
+                kind = entry["kind"]
                 if kind == "read_resp":
-                    _, tagged, value = entry
+                    tagged = entry["tagged"]
+                    value = entry["value"]
                     print(
                         f"    [read_resp]  {self._fmt_tagged(tagged)}"
                         f"  | fetched_data=0x{int(value) & self.word_mask:08x}"
                     )
                 elif kind == "write_req":
-                    _, tagged, dram_addr, value = entry
+                    tagged = entry["tagged"]
+                    dram_addr = entry["dram_addr"]
+                    value = entry["value"]
                     print(
                         f"    [write_req]  {self._fmt_tagged(tagged)}"
                         f"  | dest_dram=0x{int(dram_addr):04x}"
@@ -1061,6 +1412,23 @@ class ShmemFunctionalSimulator:
         else:
             print("  Pending DRAM Writes: (empty)")
 
+        if self.pending_read_crossbar_deliveries:
+            print(
+                f"  Pending Read Crossbar Deliveries "
+                f"({len(self.pending_read_crossbar_deliveries)}):"
+            )
+            for event in self.pending_read_crossbar_deliveries:
+                tagged = event["tagged"]
+                print(
+                    f"    {self._fmt_tagged(tagged)}"
+                    f"  | bank={int(event['bank'])}"
+                    f"  lane={int(event['lane'])}"
+                    f"  value=0x{int(event['value']) & self.word_mask:08x}"
+                    f"  ready @cycle {int(event['ready_cycle'])}"
+                )
+        else:
+            print("  Pending Read Crossbar Deliveries: (empty)")
+
         print(separator)
 
     def _log_cycle_completions(self, prev_count: int) -> None:
@@ -1086,6 +1454,10 @@ class ShmemFunctionalSimulator:
                 f"  shmem=0x{shmem:04x}  abs=0x{abs_addr:04x}  tbo=0x{tbo:04x}"
                 f"  (issued @{comp.cycle_issued}, completed @{comp.cycle_completed})"
             )
+            if comp.thread_block_id is not None:
+                line += f"  | tbid={comp.thread_block_id}"
+            if comp.smem_block_id is not None:
+                line += f"  smem_block={comp.smem_block_id}"
             if comp.read_data is not None:
                 line += f"  | read_data=0x{comp.read_data:08x}"
             if comp.dram_addr is not None:
@@ -1109,7 +1481,14 @@ class ShmemFunctionalSimulator:
             )
 
         if txn.thread_block_offset is not None:
-            int(txn.thread_block_offset)
+            raise ValueError(
+                "Legacy thread_block_offset is no longer supported. "
+                "Use thread_block_id plus resident_thread_block_ids."
+            )
+        if txn.thread_block_id is not None:
+            int(txn.thread_block_id)
+        if txn.resident_thread_block_ids is not None:
+            self._normalize_resident_thread_block_ids(txn.resident_thread_block_ids)
 
         # Ensure that all transaction types that interact with shared memory have a valid shmem_addr
         if txn.txn_type in (
@@ -1131,54 +1510,6 @@ class ShmemFunctionalSimulator:
         ) and txn.dram_addr is None:
             raise ValueError(f"{txn.txn_type.value} requires dram_addr.")
 
-    @staticmethod
-    def _normalize_thread_offsets(
-        *,
-        num_threads: int,
-        thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]],
-    ) -> Dict[int, int]:
-        """
-        Normalize thread block offsets into a consistent dictionary format.
-        
-        Args:
-            num_threads: The total number of threads.
-            thread_block_offsets: The raw offsets provided by the user.
-            
-        Returns:
-            A dictionary mapping thread IDs to their offsets.
-            
-        Raises:
-            ValueError: If offsets are out of range or mismatched.
-            TypeError: If the offsets are of an invalid type.
-        """
-        offsets: Dict[int, int] = {tid: 0 for tid in range(num_threads)}
-        if thread_block_offsets is None:
-            return offsets
-
-        if isinstance(thread_block_offsets, dict):
-            for thread_id, offset in thread_block_offsets.items():
-                tid = int(thread_id)
-                if tid < 0 or tid >= num_threads:
-                    raise ValueError(
-                        f"thread_block_offsets contains out-of-range thread_id {tid} "
-                        f"for num_threads={num_threads}"
-                    )
-                offsets[tid] = int(offset)
-            return offsets
-
-        if isinstance(thread_block_offsets, (list, tuple)):
-            if len(thread_block_offsets) != num_threads:
-                raise ValueError(
-                    "When thread_block_offsets is a list/tuple, it must have "
-                    "exactly num_threads entries."
-                )
-            return {tid: int(offset) for tid, offset in enumerate(thread_block_offsets)}
-
-        raise TypeError(
-            "thread_block_offsets must be None, dict[int, int], list[int], or tuple[int, ...]."
-        )
-
-
 def _resolve_simulator_kwargs(
     *,
     config_path: Union[str, Path] = DEFAULT_SMEM_CONFIG_PATH,
@@ -1188,6 +1519,8 @@ def _resolve_simulator_kwargs(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    thread_block_size_bytes: Optional[int] = None,
+    read_crossbar_pipeline_cycles: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Resolve simulator initialization arguments by combining config file defaults with explicit overrides.
@@ -1199,11 +1532,18 @@ def _resolve_simulator_kwargs(
         dram_latency_cycles: Latency of DRAM accesses in cycles.
         arbiter_issue_width: Number of requests the arbiter can issue per cycle.
         num_threads: Total number of threads.
-        thread_block_offsets: Offsets for each thread block.
+        thread_block_size_bytes: Size, in bytes, of one resident SMEM thread-block slot.
+        read_crossbar_pipeline_cycles: Latency of the pipelined Clos read crossbar.
         
     Returns:
         A dictionary of resolved keyword arguments.
     """
+    if thread_block_offsets is not None:
+        raise ValueError(
+            "Legacy thread_block_offsets are no longer supported. "
+            "Use thread_block_size_bytes plus thread_block_id/"
+            "resident_thread_block_ids."
+        )
     cfg = load_smem_config(config_path)
     resolved = cfg.to_sim_kwargs()
     overrides = {
@@ -1212,52 +1552,13 @@ def _resolve_simulator_kwargs(
         "dram_latency_cycles": dram_latency_cycles,
         "arbiter_issue_width": arbiter_issue_width,
         "num_threads": num_threads,
-        "thread_block_offsets": thread_block_offsets,
+        "thread_block_size_bytes": thread_block_size_bytes,
+        "read_crossbar_pipeline_cycles": read_crossbar_pipeline_cycles,
     }
     for key, value in overrides.items():
         if value is not None:
             resolved[key] = value
     return resolved
-
-
-def _expand_thread_offsets_to_num_threads(
-    offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]],
-    num_threads: int,
-) -> Optional[Dict[int, int] | List[int] | Tuple[int, ...]]:
-    """
-    Expand the provided thread offsets to match the specified number of threads.
-    
-    Pads missing offsets with zero.
-    
-    Args:
-        offsets: The initial thread offsets.
-        num_threads: The target number of threads.
-        
-    Returns:
-        The expanded thread offsets in their original format.
-    """
-    if offsets is None:
-        return None
-
-    if isinstance(offsets, dict):
-        expanded = {int(k): int(v) for k, v in offsets.items()}
-        for tid in range(int(num_threads)):
-            expanded.setdefault(tid, 0)
-        return expanded
-
-    if isinstance(offsets, list):
-        out = [int(v) for v in offsets]
-        if len(out) < int(num_threads):
-            out.extend([0] * (int(num_threads) - len(out)))
-        return out
-
-    if isinstance(offsets, tuple):
-        out = [int(v) for v in offsets]
-        if len(out) < int(num_threads):
-            out.extend([0] * (int(num_threads) - len(out)))
-        return tuple(out)
-
-    return offsets
 
 
 def run_smem_functional_sim(
@@ -1271,6 +1572,8 @@ def run_smem_functional_sim(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    thread_block_size_bytes: Optional[int] = None,
+    read_crossbar_pipeline_cycles: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Main function to run the SMEM functional simulator.
@@ -1281,12 +1584,15 @@ def run_smem_functional_sim(
     - shmem_addr: int (required for all transactions in this model)
     - write_data: int (required for sh.st)
     - thread_id: int (optional, default 0)
-    - thread_block_offset: int (optional per-transaction override)
+    - thread_block_id / tbid: int (optional resident thread-block ID)
+    - resident_thread_block_ids / tbids: 4-entry vector mapping SMEM slots to TBIDs
+    - thread_block_done_bits / done_bits: completion bits for the transaction's TBID
 
     Global thread parameters:
     - num_threads: total thread count in this simulation instance
-    - thread_block_offsets: per-thread SMEM base offsets (dict/list/tuple).
-      If omitted, each thread defaults to offset 0.
+    - thread_block_size_bytes: when TBID residency is used, offset =
+      smem_block_id * thread_block_size_bytes.
+    - read_crossbar_pipeline_cycles: latency of the pipelined Clos read crossbar.
 
     Config:
     - config_path: TOML file path (default `.config`) with `[smem]` defaults.
@@ -1300,6 +1606,8 @@ def run_smem_functional_sim(
         arbiter_issue_width=arbiter_issue_width,
         num_threads=num_threads,
         thread_block_offsets=thread_block_offsets,
+        thread_block_size_bytes=thread_block_size_bytes,
+        read_crossbar_pipeline_cycles=read_crossbar_pipeline_cycles,
     )
     sim = ShmemFunctionalSimulator(dram_init=dram_init, **sim_kwargs)
     return sim.run(transactions)
@@ -1321,12 +1629,22 @@ def run_single_smem_transaction(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    thread_block_size_bytes: Optional[int] = None,
+    read_crossbar_pipeline_cycles: Optional[int] = None,
+    thread_block_id: Optional[int] = None,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    thread_block_done_bits: Any = None,
 ) -> Dict[str, Any]:
     """
     Convenience wrapper for one transaction using the exact input fields:
-    txn_type, dram_addr, shmem_addr, write_data, thread_id, thread_block_offset.
+    txn_type, dram_addr, shmem_addr, write_data, thread_id, thread_block_id.
     Uses `.config` defaults unless overridden by explicit arguments.
     """
+    if thread_block_offset is not None:
+        raise ValueError(
+            "Legacy thread_block_offset is no longer supported. "
+            "Use thread_block_id plus resident_thread_block_ids."
+        )
     txn_enum = (
         txn_type
         if isinstance(txn_type, TxnType)
@@ -1340,12 +1658,10 @@ def run_single_smem_transaction(
         arbiter_issue_width=arbiter_issue_width,
         num_threads=num_threads,
         thread_block_offsets=thread_block_offsets,
+        thread_block_size_bytes=thread_block_size_bytes,
+        read_crossbar_pipeline_cycles=read_crossbar_pipeline_cycles,
     )
     sim_kwargs["num_threads"] = max(int(sim_kwargs["num_threads"]), int(thread_id) + 1)
-    sim_kwargs["thread_block_offsets"] = _expand_thread_offsets_to_num_threads(
-        sim_kwargs.get("thread_block_offsets"),
-        int(sim_kwargs["num_threads"]),
-    )
     sim = ShmemFunctionalSimulator(dram_init=dram_init, **sim_kwargs)
     completion = sim.run_one(
         Transaction(
@@ -1354,7 +1670,18 @@ def run_single_smem_transaction(
             shmem_addr=shmem_addr,
             write_data=write_data,
             thread_id=thread_id,
-            thread_block_offset=thread_block_offset,
+            thread_block_id=(
+                int(thread_block_id) if thread_block_id is not None else None
+            ),
+            resident_thread_block_ids=(
+                tuple(
+                    int(tbid) if tbid is not None else None
+                    for tbid in resident_thread_block_ids
+                )
+                if resident_thread_block_ids is not None
+                else None
+            ),
+            thread_block_done_bits=thread_block_done_bits,
         )
     )
     return {
@@ -1505,6 +1832,11 @@ class ShmemCompatibleCacheStage:
             return req
 
         if isinstance(req, dict):
+            if req.get("thread_block_offset") is not None:
+                raise ValueError(
+                    "Legacy thread_block_offset is no longer supported. "
+                    "Use thread_block_id plus resident_thread_block_ids."
+                )
             if ("type" in req or "txn_type" in req) and ("rw_mode" not in req):
                 return Transaction.from_dict(req)
             parsed_type: Optional[TxnType] = None
@@ -1539,10 +1871,33 @@ class ShmemCompatibleCacheStage:
                 shmem_addr=int(req.get("addr_val", req.get("shmem_addr", 0))),
                 write_data=req.get("store_value", req.get("write_data")),
                 thread_id=int(req.get("thread_id", 0)),
-                thread_block_offset=(
-                    int(req["thread_block_offset"])
-                    if req.get("thread_block_offset") is not None
+                thread_block_id=(
+                    int(req["thread_block_id"])
+                    if req.get("thread_block_id") is not None
+                    else (
+                        int(req["tbid"])
+                        if req.get("tbid") is not None
+                        else None
+                    )
+                ),
+                resident_thread_block_ids=(
+                    tuple(
+                        int(tbid) if tbid is not None else None
+                        for tbid in req.get(
+                            "resident_thread_block_ids",
+                            req.get("tbids", req.get("smem_tbids", ())),
+                        )
+                    )
+                    if (
+                        req.get("resident_thread_block_ids") is not None
+                        or req.get("tbids") is not None
+                        or req.get("smem_tbids") is not None
+                    )
                     else None
+                ),
+                thread_block_done_bits=req.get(
+                    "thread_block_done_bits",
+                    req.get("done_bits"),
                 ),
             )
 
@@ -1551,7 +1906,28 @@ class ShmemCompatibleCacheStage:
         size = str(getattr(req, "size", "word")).lower()
         thread_id = int(getattr(req, "thread_id", 0))
         tbo = getattr(req, "thread_block_offset", None)
-        tbo_int = int(tbo) if tbo is not None else None
+        if tbo is not None:
+            raise ValueError(
+                "Legacy thread_block_offset is no longer supported. "
+                "Use thread_block_id plus resident_thread_block_ids."
+            )
+        tbid = getattr(req, "thread_block_id", getattr(req, "tbid", None))
+        tbid_int = int(tbid) if tbid is not None else None
+        resident_ids = getattr(
+            req,
+            "resident_thread_block_ids",
+            getattr(req, "tbids", getattr(req, "smem_tbids", None)),
+        )
+        resident_ids_tuple = (
+            tuple(int(slot_tbid) if slot_tbid is not None else None for slot_tbid in resident_ids)
+            if resident_ids is not None
+            else None
+        )
+        done_bits = getattr(
+            req,
+            "thread_block_done_bits",
+            getattr(req, "done_bits", None),
+        )
 
         if rw_mode == "write":
             raw_store = int(getattr(req, "store_value", 0))
@@ -1560,21 +1936,27 @@ class ShmemCompatibleCacheStage:
                 data=raw_store,
                 size=size,
                 thread_id=thread_id,
-                thread_block_offset=tbo_int,
+                thread_block_id=tbid_int,
+                resident_thread_block_ids=resident_ids_tuple,
+                thread_block_done_bits=done_bits,
             )
             return Transaction(
                 txn_type=TxnType.SH_ST,
                 shmem_addr=addr,
                 write_data=merged_store,
                 thread_id=thread_id,
-                thread_block_offset=tbo_int,
+                thread_block_id=tbid_int,
+                resident_thread_block_ids=resident_ids_tuple,
+                thread_block_done_bits=done_bits,
             )
 
         return Transaction(
             txn_type=TxnType.SH_LD,
             shmem_addr=addr,
             thread_id=thread_id,
-            thread_block_offset=tbo_int,
+            thread_block_id=tbid_int,
+            resident_thread_block_ids=resident_ids_tuple,
+            thread_block_done_bits=done_bits,
         )
 
     def _format_store_data_for_size(
@@ -1584,7 +1966,9 @@ class ShmemCompatibleCacheStage:
         data: int,
         size: str,
         thread_id: int,
-        thread_block_offset: Optional[int],
+        thread_block_id: Optional[int],
+        resident_thread_block_ids: Optional[Tuple[Optional[int], ...]],
+        thread_block_done_bits: Any,
     ) -> int:
         """
         Format store data based on the requested access size (word, half, byte).
@@ -1596,7 +1980,9 @@ class ShmemCompatibleCacheStage:
             data: The raw data to store.
             size: The access size ("word", "half", "byte").
             thread_id: The ID of the requesting thread.
-            thread_block_offset: The offset for the thread block.
+            thread_block_id: The resident thread-block ID, when TBID mode is used.
+            resident_thread_block_ids: The 4-slot resident SMEM TBID vector.
+            thread_block_done_bits: Done bits for the current thread block.
             
         Returns:
             The formatted data word to store.
@@ -1608,7 +1994,9 @@ class ShmemCompatibleCacheStage:
             txn_type=TxnType.SH_LD,
             shmem_addr=addr,
             thread_id=thread_id,
-            thread_block_offset=thread_block_offset,
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            thread_block_done_bits=thread_block_done_bits,
         )
         absolute = self.sim._absolute_smem_addr(tx_probe)
         old_word = int(self.sim.sram_linear.get(absolute, 0)) & 0xFFFF_FFFF
@@ -1889,15 +2277,10 @@ def _sim_from_config(*, num_threads: int, verbose: bool = True) -> ShmemFunction
     Create a simulator whose hardware params (num_banks, word_bytes,
     dram_latency_cycles, arbiter_issue_width) come from ``.config``.
     ``num_threads`` is always test-specific so it is passed explicitly.
-    Thread block offsets from the config are expanded (zero-padded) or
-    truncated to match the requested ``num_threads``.
     """
     cfg = load_smem_config()
     kwargs = cfg.to_sim_kwargs()
     kwargs["num_threads"] = num_threads
-    kwargs["thread_block_offsets"] = _expand_thread_offsets_to_num_threads(
-        kwargs.get("thread_block_offsets"), num_threads,
-    )
     kwargs["verbose"] = verbose
     return ShmemFunctionalSimulator(**kwargs)
 

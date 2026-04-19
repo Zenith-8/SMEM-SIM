@@ -15,13 +15,57 @@ from __future__ import annotations
 from contextlib import redirect_stdout
 from dataclasses import dataclass
 import io
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from main import ShmemFunctionalSimulator, Transaction, TxnType, load_smem_config
 from test_dcache_and_smem import _load_dcache_symbols
 
 
 DCACHE = _load_dcache_symbols()
+DEFAULT_TEST_TB_SIZE_BYTES = 0x100
+
+
+def _tb_slots(*tbids: Optional[int]) -> Tuple[Optional[int], ...]:
+    slots = list(tbids[:4])
+    while len(slots) < 4:
+        slots.append(None)
+    return tuple(slots)
+
+
+def _tb_kwargs(
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, Any]:
+    return {
+        "thread_block_id": int(thread_block_id),
+        "resident_thread_block_ids": tuple(
+            resident_thread_block_ids
+            if resident_thread_block_ids is not None
+            else _tb_slots(int(thread_block_id))
+        ),
+        "thread_block_done_bits": [1] if done else [0],
+    }
+
+
+def _tb_txn(
+    txn_type: TxnType,
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+    **kwargs: Any,
+) -> Transaction:
+    return Transaction(
+        txn_type=txn_type,
+        **kwargs,
+        **_tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        ),
+    )
 
 
 @dataclass
@@ -92,15 +136,15 @@ def _preload_smem_word(
     shmem_addr: int,
     value: int,
     thread_id: int = 0,
-    thread_block_offset: Optional[int] = None,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
 ) -> None:
-    probe = Transaction(
-        txn_type=TxnType.SH_LD,
+    probe = _tb_txn(
+        TxnType.SH_LD,
         shmem_addr=int(shmem_addr),
         thread_id=int(thread_id),
-        thread_block_offset=(
-            int(thread_block_offset) if thread_block_offset is not None else None
-        ),
+        thread_block_id=thread_block_id,
+        resident_thread_block_ids=resident_thread_block_ids,
     )
     absolute = sim._absolute_smem_addr(probe)
     bank, slot = sim._address_crossbar(
@@ -122,6 +166,10 @@ def _run_smem_to_completion(
     cfg = load_smem_config()
     kwargs = cfg.to_sim_kwargs()
     kwargs["dram_init"] = dram_init or {}
+    kwargs.pop("thread_block_offsets", None)
+    kwargs["thread_block_size_bytes"] = int(
+        kwargs.get("thread_block_size_bytes") or DEFAULT_TEST_TB_SIZE_BYTES
+    )
     if dram_latency_cycles is not None:
         kwargs["dram_latency_cycles"] = int(dram_latency_cycles)
     sim = ShmemFunctionalSimulator(**kwargs)
@@ -269,7 +317,7 @@ def _build_cases() -> List[CycleCase]:
                 preload_hit_value=sh_ld_data,
             ),
             run_smem=lambda: _run_smem_to_completion(
-                Transaction(txn_type=TxnType.SH_LD, shmem_addr=sh_ld_addr),
+                _tb_txn(TxnType.SH_LD, shmem_addr=sh_ld_addr),
                 preload=lambda sim: _preload_smem_word(
                     sim,
                     shmem_addr=sh_ld_addr,
@@ -292,8 +340,8 @@ def _build_cases() -> List[CycleCase]:
                 preload_hit_value=sh_st_old,
             ),
             run_smem=lambda: _run_smem_to_completion(
-                Transaction(
-                    txn_type=TxnType.SH_ST,
+                _tb_txn(
+                    TxnType.SH_ST,
                     shmem_addr=sh_st_addr,
                     write_data=sh_st_new,
                 ),
@@ -319,8 +367,8 @@ def _build_cases() -> List[CycleCase]:
                 memory_words={global_ld_addr: global_ld_data},
             ),
             run_smem=lambda: _run_smem_to_completion(
-                Transaction(
-                    txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                _tb_txn(
+                    TxnType.GLOBAL_LD_DRAM_TO_SRAM,
                     dram_addr=global_ld_addr,
                     shmem_addr=0x28,
                 ),
@@ -343,8 +391,8 @@ def _build_cases() -> List[CycleCase]:
                 mem_latency_cycles=mem_latency,
             ),
             run_smem=lambda: _run_smem_to_completion(
-                Transaction(
-                    txn_type=TxnType.GLOBAL_ST_SMEM_TO_DRAM,
+                _tb_txn(
+                    TxnType.GLOBAL_ST_SMEM_TO_DRAM,
                     dram_addr=global_st_dram_addr,
                     shmem_addr=global_st_shmem_addr,
                 ),

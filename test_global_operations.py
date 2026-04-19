@@ -14,7 +14,7 @@ They exercise:
     - DRAM-latency-driven completion timing for both global load and store
     - Value-snapshot semantics of ``global.st`` (captured at read-controller time)
     - Pipelining of multiple in-flight global loads / stores
-    - Per-thread ``thread_block_offset`` behavior for global ops
+    - Per-thread resident-thread-block behavior for global ops
     - Global + sync interleavings end-to-end
     - Completion record field population (``dram_addr``, ``read_data``, trace)
     - ``run_single_smem_transaction`` end-to-end coverage for global ops
@@ -29,7 +29,7 @@ or:
 from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from main import (
     ShmemCompatibleCacheStage,
@@ -46,6 +46,68 @@ from main import (
 DEFAULT_NUM_BANKS = 32
 DEFAULT_WORD_BYTES = 4
 DEFAULT_ARBITER_ISSUE_WIDTH = 4
+DEFAULT_TEST_TB_SIZE_BYTES = 0x100
+
+
+def _tb_slots(*tbids: Optional[int]) -> Tuple[Optional[int], ...]:
+    slots = list(tbids[:4])
+    while len(slots) < 4:
+        slots.append(None)
+    return tuple(slots)
+
+
+def _tb_kwargs(
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, Any]:
+    return {
+        "thread_block_id": int(thread_block_id),
+        "resident_thread_block_ids": tuple(
+            resident_thread_block_ids
+            if resident_thread_block_ids is not None
+            else _tb_slots(int(thread_block_id))
+        ),
+        "thread_block_done_bits": [1] if done else [0],
+    }
+
+
+def _tb_dict(
+    payload: Dict[str, Any],
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, Any]:
+    out = dict(payload)
+    out.update(
+        _tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        )
+    )
+    return out
+
+
+def _tb_txn(
+    txn_type: TxnType,
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+    **kwargs: Any,
+) -> Transaction:
+    return Transaction(
+        txn_type=txn_type,
+        **kwargs,
+        **_tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        ),
+    )
 
 
 def _completions_by_id(result: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
@@ -65,7 +127,7 @@ def _sim(**overrides: Any) -> ShmemFunctionalSimulator:
         "dram_latency_cycles": 1,
         "arbiter_issue_width": DEFAULT_ARBITER_ISSUE_WIDTH,
         "num_threads": 1,
-        "thread_block_offsets": [0],
+        "thread_block_size_bytes": DEFAULT_TEST_TB_SIZE_BYTES,
     }
     kwargs.update(overrides)
     return ShmemFunctionalSimulator(**kwargs)
@@ -299,33 +361,33 @@ class TestGlobalStoreSmemToDram(unittest.TestCase):
         lives at each thread's own absolute SMEM address."""
         result = run_smem_functional_sim(
             [
-                {
+                _tb_dict({
                     "type": "sh.st",
                     "thread_id": 0,
                     "shmem_addr": 0x10,
                     "write_data": 0xAAAA,
-                },
-                {
+                }, thread_block_id=0, resident_thread_block_ids=_tb_slots(0, 1)),
+                _tb_dict({
                     "type": "sh.st",
                     "thread_id": 1,
                     "shmem_addr": 0x10,
                     "write_data": 0xBBBB,
-                },
-                {
+                }, thread_block_id=1, resident_thread_block_ids=_tb_slots(0, 1)),
+                _tb_dict({
                     "type": "global.st.smem2dram",
                     "thread_id": 0,
                     "shmem_addr": 0x10,
                     "dram_addr": 0x3000,
-                },
-                {
+                }, thread_block_id=0, resident_thread_block_ids=_tb_slots(0, 1)),
+                _tb_dict({
                     "type": "global.st.smem2dram",
                     "thread_id": 1,
                     "shmem_addr": 0x10,
                     "dram_addr": 0x3100,
-                },
+                }, thread_block_id=1, resident_thread_block_ids=_tb_slots(0, 1)),
             ],
             num_threads=2,
-            thread_block_offsets={0: 0x000, 1: 0x200},
+            thread_block_size_bytes=0x200,
         )
         self.assertEqual(result["dram"][0x3000], 0xAAAA)
         self.assertEqual(result["dram"][0x3100], 0xBBBB)
@@ -335,19 +397,20 @@ class TestGlobalLoadDramToSram(unittest.TestCase):
     """Behavioral tests for the ``global.ld.dram2sram`` path."""
 
     def test_global_load_populates_sram_from_dram(self) -> None:
-        result = run_smem_functional_sim(
+        sim = _sim(dram_init={0x1000: 0x1234ABCD})
+        sim.run(
             [
-                {
-                    "type": "global.ld.dram2sram",
-                    "dram_addr": 0x1000,
-                    "shmem_addr": 0x24,
-                },
-                {"type": "sh.ld", "shmem_addr": 0x24},
-            ],
-            dram_init={0x1000: 0x1234ABCD},
+                Transaction(
+                    txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                    dram_addr=0x1000,
+                    shmem_addr=0x24,
+                ),
+            ]
         )
-        completions = _completions_by_id(result)
-        self.assertEqual(completions[2]["read_data"], 0x1234ABCD)
+        while sim._has_pending_work():
+            sim.step()
+        read_back = sim.run_one(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x24))
+        self.assertEqual(read_back["read_data"], 0x1234ABCD)
 
     def test_global_load_missing_dram_key_loads_zero(self) -> None:
         result = run_smem_functional_sim(
@@ -364,20 +427,27 @@ class TestGlobalLoadDramToSram(unittest.TestCase):
         self.assertEqual(completions[2]["read_data"], 0)
 
     def test_global_load_overwrites_existing_sram_value(self) -> None:
-        result = run_smem_functional_sim(
+        sim = _sim(dram_init={0x1000: 0xBEEF})
+        sim.run(
             [
-                {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xDEAD},
-                {
-                    "type": "global.ld.dram2sram",
-                    "dram_addr": 0x1000,
-                    "shmem_addr": 0x20,
-                },
-                {"type": "sh.ld", "shmem_addr": 0x20},
-            ],
-            dram_init={0x1000: 0xBEEF},
+                Transaction(txn_type=TxnType.SH_ST, shmem_addr=0x20, write_data=0xDEAD),
+            ]
         )
-        completions = _completions_by_id(result)
-        self.assertEqual(completions[3]["read_data"], 0xBEEF)
+        while sim._has_pending_work():
+            sim.step()
+        sim.run(
+            [
+                Transaction(
+                    txn_type=TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                    dram_addr=0x1000,
+                    shmem_addr=0x20,
+                ),
+            ]
+        )
+        while sim._has_pending_work():
+            sim.step()
+        read_back = sim.run_one(Transaction(txn_type=TxnType.SH_LD, shmem_addr=0x20))
+        self.assertEqual(read_back["read_data"], 0xBEEF)
 
     def test_global_load_completion_metadata_is_populated(self) -> None:
         result = run_smem_functional_sim(
@@ -444,11 +514,14 @@ class TestGlobalLoadDramToSram(unittest.TestCase):
         ]
         dram_init = {0x100: 1, 0x104: 2, 0x108: 3, 0x10C: 4}
         result = run_smem_functional_sim(
-            txns,
+            [
+                _tb_dict(txn, thread_block_id=0, resident_thread_block_ids=_tb_slots(0))
+                for txn in txns
+            ],
             dram_init=dram_init,
             dram_latency_cycles=latency,
             num_threads=4,
-            thread_block_offsets=[0, 0, 0, 0],
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         )
 
         completions = _completions_by_id(result)
@@ -466,25 +539,46 @@ class TestGlobalLoadDramToSram(unittest.TestCase):
     def test_global_load_per_thread_offset_targets_correct_slot(self) -> None:
         """An global load that targets a non-trivial per-thread offset must be
         observable by a follow-up ``sh.ld`` from that same thread."""
-        result = run_smem_functional_sim(
-            [
-                {
-                    "type": "global.ld.dram2sram",
-                    "thread_id": 1,
-                    "dram_addr": 0x7000,
-                    "shmem_addr": 0x10,
-                },
-                {"type": "sh.ld", "thread_id": 1, "shmem_addr": 0x10},
-                {"type": "sh.ld", "thread_id": 0, "shmem_addr": 0x10},
-            ],
+        sim = _sim(
             dram_init={0x7000: 0xC0DE},
             num_threads=2,
-            thread_block_offsets={0: 0x000, 1: 0x200},
+            thread_block_size_bytes=0x200,
         )
-        completions = _completions_by_id(result)
-        self.assertEqual(completions[2]["read_data"], 0xC0DE)
+        sim.run(
+            [
+                _tb_txn(
+                    TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                    thread_id=1,
+                    dram_addr=0x7000,
+                    shmem_addr=0x10,
+                    thread_block_id=1,
+                    resident_thread_block_ids=_tb_slots(0, 1),
+                ),
+            ]
+        )
+        while sim._has_pending_work():
+            sim.step()
+        thread1_read = sim.run_one(
+            _tb_txn(
+                TxnType.SH_LD,
+                thread_id=1,
+                shmem_addr=0x10,
+                thread_block_id=1,
+                resident_thread_block_ids=_tb_slots(0, 1),
+            )
+        )
+        thread0_read = sim.run_one(
+            _tb_txn(
+                TxnType.SH_LD,
+                thread_id=0,
+                shmem_addr=0x10,
+                thread_block_id=0,
+                resident_thread_block_ids=_tb_slots(0, 1),
+            )
+        )
+        self.assertEqual(thread1_read["read_data"], 0xC0DE)
         self.assertEqual(
-            completions[3]["read_data"],
+            thread0_read["read_data"],
             0,
             "Thread 0 observes its own offset window; it must see the "
             "uninitialized value at its (thread_id=0) view of shmem 0x10.",
@@ -989,7 +1083,7 @@ def demo_global_with_high_dram_latency() -> None:
         dram_latency_cycles=5,
         arbiter_issue_width=DEFAULT_ARBITER_ISSUE_WIDTH,
         num_threads=2,
-        thread_block_offsets=[0, 0],
+        thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         verbose=True,
     )
     sim.dram.update({0xA00: 0xFEEDFACE, 0xA04: 0xDEADC0DE})

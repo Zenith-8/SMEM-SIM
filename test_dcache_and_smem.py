@@ -16,9 +16,9 @@ import types
 import unittest
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Sequence, Tuple
 
-from main import run_smem_functional_sim
+from main import ShmemFunctionalSimulator, Transaction, TxnType, run_smem_functional_sim
 
 
 ROOT = Path(__file__).resolve().parent
@@ -169,6 +169,68 @@ def _load_dcache_symbols() -> Dict[str, Any]:
 
 
 DCACHE = _load_dcache_symbols()
+DEFAULT_TEST_TB_SIZE_BYTES = 0x100
+
+
+def _tb_slots(*tbids: Optional[int]) -> Tuple[Optional[int], ...]:
+    slots = list(tbids[:4])
+    while len(slots) < 4:
+        slots.append(None)
+    return tuple(slots)
+
+
+def _tb_kwargs(
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, Any]:
+    return {
+        "thread_block_id": int(thread_block_id),
+        "resident_thread_block_ids": tuple(
+            resident_thread_block_ids
+            if resident_thread_block_ids is not None
+            else _tb_slots(int(thread_block_id))
+        ),
+        "thread_block_done_bits": [1] if done else [0],
+    }
+
+
+def _tb_dict(
+    payload: Dict[str, Any],
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+) -> Dict[str, Any]:
+    out = dict(payload)
+    out.update(
+        _tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        )
+    )
+    return out
+
+
+def _tb_txn(
+    txn_type: TxnType,
+    *,
+    thread_block_id: int = 0,
+    resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
+    done: bool = False,
+    **kwargs: Any,
+) -> Transaction:
+    return Transaction(
+        txn_type=txn_type,
+        **kwargs,
+        **_tb_kwargs(
+            thread_block_id=thread_block_id,
+            resident_thread_block_ids=resident_thread_block_ids,
+            done=done,
+        ),
+    )
 
 
 class TestDCacheMSHR(unittest.TestCase):
@@ -304,9 +366,10 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
     def test_sh_store_then_load_round_trip(self):
         result = run_smem_functional_sim(
             [
-                {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xDEADBEEF},
-                {"type": "sh.ld", "shmem_addr": 0x20},
-            ]
+                _tb_dict({"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xDEADBEEF}),
+                _tb_dict({"type": "sh.ld", "shmem_addr": 0x20}),
+            ],
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         )
         self.assertEqual(result["cycle_count"], result["cycle"])
         completions = {c["txn_id"]: c for c in result["completions"]}
@@ -315,22 +378,31 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
     def test_global_store_writes_to_dram(self):
         result = run_smem_functional_sim(
             [
-                {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xCAFEBABE},
-                {"type": "global.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000},
-            ]
+                _tb_dict({"type": "sh.st", "shmem_addr": 0x20, "write_data": 0xCAFEBABE}),
+                _tb_dict({"type": "global.st.smem2dram", "shmem_addr": 0x20, "dram_addr": 0x1000}),
+            ],
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         )
         self.assertEqual(result["dram"][0x1000], 0xCAFEBABE)
 
     def test_global_load_then_sh_load_reads_back_dram_value(self):
-        result = run_smem_functional_sim(
-            [
-                {"type": "global.ld.dram2sram", "dram_addr": 0x1000, "shmem_addr": 0x24},
-                {"type": "sh.ld", "shmem_addr": 0x24},
-            ],
+        sim = ShmemFunctionalSimulator(
             dram_init={0x1000: 0x1234ABCD},
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         )
-        completions = {c["txn_id"]: c for c in result["completions"]}
-        self.assertEqual(completions[2]["read_data"], 0x1234ABCD)
+        sim.run(
+            [
+                _tb_txn(
+                    TxnType.GLOBAL_LD_DRAM_TO_SRAM,
+                    dram_addr=0x1000,
+                    shmem_addr=0x24,
+                )
+            ]
+        )
+        while sim._has_pending_work():
+            sim.step()
+        completion = sim.run_one(_tb_txn(TxnType.SH_LD, shmem_addr=0x24))
+        self.assertEqual(completion["read_data"], 0x1234ABCD)
 
     def test_bank_conflicts_are_serialized_per_bank(self):
         """
@@ -347,11 +419,12 @@ class TestSMEMFunctionalSimulator(unittest.TestCase):
         """
         result = run_smem_functional_sim(
             [
-                {"type": "sh.st", "shmem_addr": 0x20, "write_data": 0x1},
-                {"type": "sh.st", "shmem_addr": 0xA0, "write_data": 0x2},
-                {"type": "sh.st", "shmem_addr": 0x24, "write_data": 0x3},
+                _tb_dict({"type": "sh.st", "shmem_addr": 0x20, "write_data": 0x1}),
+                _tb_dict({"type": "sh.st", "shmem_addr": 0xA0, "write_data": 0x2}),
+                _tb_dict({"type": "sh.st", "shmem_addr": 0x24, "write_data": 0x3}),
             ],
             arbiter_issue_width=4,
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
         )
         completions = {c["txn_id"]: c for c in result["completions"]}
 
