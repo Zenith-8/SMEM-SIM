@@ -1,6 +1,6 @@
 
 ================================================================================
-== test_dcache_and_smem.py  (2026-04-17T17:18:12)
+== test_dcache_and_smem.py  (2026-04-23T22:02:44)
 ================================================================================
 
 test_hit_pipeline_emits_hit_complete_event (__main__.TestDCacheBankAndStage.test_hit_pipeline_emits_hit_complete_event) ... Cache: Received new request: dCacheRequest(addr_val=0x20, rw_mode='read', size='word', store_value=None, halt=False)
@@ -16,6 +16,6 @@ test_global_store_writes_to_dram (__main__.TestSMEMFunctionalSimulator.test_glob
 test_sh_store_then_load_round_trip (__main__.TestSMEMFunctionalSimulator.test_sh_store_then_load_round_trip) ... ok
 
 ----------------------------------------------------------------------
-Ran 9 tests in 0.006s
+Ran 9 tests in 0.003s
 
 OK

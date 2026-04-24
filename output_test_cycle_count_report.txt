@@ -1,19 +1,21 @@
 
 ================================================================================
-== test_cycle_count_report.py  (2026-04-19T00:03:31)
+== test_cycle_count_report.py  (2026-04-23T22:02:44)
 ================================================================================
 
 Cycle Count Comparison: DCache vs SHMEM (main.py)
 =================================================
-Case                     DCache    SHMEM    Delta DCache Timeline        DCache Result                    SHMEM Result                  
-----------------------------------------------------------------------------------------------------------------------------------------------
-sh.ld (hit)                   3        5        2 done@3                 HIT_COMPLETE (data=0x11223344)   sh.ld (data=0x11223344)       
+Comparison DRAM latency: 0 cycles on both DCache and SMEM.
+
+Case                     DCache    SHMEM    Delta      TBO   Blk DCache Timeline        DCache Result                    SHMEM Result                  
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+sh.ld (hit)                   3        5        2 0x0000     0 done@3                 HIT_COMPLETE (data=0x11223344)   sh.ld (data=0x11223344)       
   note: Direct read hit in both models.
-sh.st (hit)                   3        2       -1 done@3                 HIT_COMPLETE (data=0xDEADBEEF)   sh.st (data=0xDEADBEEF)       
+sh.st (hit)                   3        2       -1 0x0000     0 done@3                 HIT_COMPLETE (data=0xDEADBEEF)   sh.st (data=0xDEADBEEF)       
   note: Write hit; both report prior word in response payload.
-global.ld.dram2sram          23        7      -16 accept@1, done@23      MISS_COMPLETE (data=-)           global.ld.dram2sram (data=-)  
+global.ld.dram2sram          20        4      -16 0x0000     0 accept@1, done@20      MISS_COMPLETE (data=-)           global.ld.dram2sram (data=-)  
   note: Compared to dcache read miss completion path.
-global.st.smem2dram          23        7      -16 accept@1, done@23      MISS_COMPLETE (data=-)           global.st.smem2dram (data=-)  
+global.st.smem2dram          20        4      -16 0x0000     0 accept@1, done@20      MISS_COMPLETE (data=-)           global.st.smem2dram (data=-)  
   note: Compared to dcache write-miss allocate/complete path.
-----------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
 Average delta (SHMEM - DCache): -7.75 cycles

@@ -18,7 +18,7 @@ from common.custom_enums_multi import Op
 
 '''FROM DCACHE'''
 # --- Cache Configuration ---
-NUM_BANKS = 32          # Number of banks
+NUM_BANKS = 2           # Number of banks
 NUM_SETS_PER_BANK = 16  # Number of sets per bank
 NUM_WAYS = 8            # Number of ways in each set
 BLOCK_SIZE_WORDS = 32   # Number of words in each block

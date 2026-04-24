@@ -62,7 +62,7 @@ DCACHE_BLOCK_WORDS = int(DCACHE_BLOCK_SIZE_WORDS)
 _SMEM_CFG = load_smem_config()
 SMEM_NUM_BANKS = int(_SMEM_CFG.num_banks)
 WORD_BYTES = int(_SMEM_CFG.word_bytes)
-MISS_LATENCY_CYCLES = int(_SMEM_CFG.dram_latency_cycles)
+MISS_LATENCY_CYCLES = 0
 SMEM_ARBITER_ISSUE_WIDTH = int(_SMEM_CFG.arbiter_issue_width)
 
 SAXPY_A = 3
@@ -856,7 +856,7 @@ def _plot_rows(rows: List[BenchmarkRow], path: Path) -> None:
         color=colors["smem_balanced"],
         marker="s",
         linewidth=2.4,
-        label="SMEM balanced",
+        label="Scratchpad balanced",
     )
     ax.plot(
         threads,
@@ -865,7 +865,7 @@ def _plot_rows(rows: List[BenchmarkRow], path: Path) -> None:
         marker="s",
         linestyle="--",
         linewidth=2.4,
-        label="SMEM conflict",
+        label="Scratchpad conflict",
     )
 
     ax.set_title("SAXPY-Like Stream")
@@ -875,14 +875,14 @@ def _plot_rows(rows: List[BenchmarkRow], path: Path) -> None:
     ax.legend(loc="upper left", ncol=2, fontsize=10)
 
     fig.suptitle(
-        "SMEM vs DCache Thread Scaling",
+        "Scratchpad vs DCache Thread Scaling",
         fontsize=16,
     )
     fig.text(
         0.5,
         0.01,
         "Balanced and same-bank-conflict runs are overlaid. "
-        f"The dcache model has {DCACHE_NUM_BANKS} banks; the shared-memory model has {SMEM_NUM_BANKS} banks.",
+        f"The dcache model has {DCACHE_NUM_BANKS} banks; the scratchpad model has {SMEM_NUM_BANKS} banks.",
         ha="center",
         fontsize=9,
     )
@@ -915,7 +915,7 @@ def _write_report(rows: List[BenchmarkRow], path: Path) -> None:
         "Configuration",
         "-------------",
         "- Threads swept from 1 to 32",
-        f"- Synthetic miss latency used in this benchmark: {MISS_LATENCY_CYCLES} cycles",
+        f"- Synthetic DCache/SMEM comparison latency: {MISS_LATENCY_CYCLES} cycles",
         "- Balanced runs spread requests across banks as evenly as possible",
         "- Conflict runs force requests onto one bank",
         f"- DCache has {DCACHE_NUM_BANKS} banks; SMEM has {SMEM_NUM_BANKS} banks",

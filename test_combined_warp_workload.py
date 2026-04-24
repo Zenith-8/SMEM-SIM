@@ -24,6 +24,9 @@ The same traffic is also driven through ``LockupFreeCacheStage`` (the real
 DCache) in parallel, so we can report both cycle counts side-by-side, which is
 the whole point of a longer combined workload.
 
+The DCache-vs-SMEM comparison path uses 0-cycle DRAM latency on both sides so
+the cycle gap reflects only the on-chip pipeline and queuing behavior.
+
 Run:
     python3 test_combined_warp_workload.py
 
@@ -78,6 +81,7 @@ DRAM_B_BASE: int = 0x0002_0000
 DRAM_OUT_A_BASE: int = 0x0003_0000
 DRAM_OUT_B_BASE: int = 0x0004_0000
 DCACHE_LINE_STRIDE_SLOTS: int = 1
+COMPARISON_DRAM_LATENCY_CYCLES: int = 0
 
 DRAM_SEED_WARP0: int = 0xA000_0000
 DRAM_SEED_WARP1: int = 0xB000_0000
@@ -296,12 +300,32 @@ def _build_smem_simulator(dram_init: Dict[int, int]) -> ShmemFunctionalSimulator
     cfg = load_smem_config()
     kwargs = cfg.to_sim_kwargs()
     kwargs["num_threads"] = TOTAL_THREADS
+    kwargs["dram_latency_cycles"] = COMPARISON_DRAM_LATENCY_CYCLES
     kwargs.pop("thread_block_offsets", None)
     kwargs["thread_block_size_bytes"] = int(
         kwargs.get("thread_block_size_bytes") or THREAD_BLOCK_SIZE_BYTES
     )
     kwargs["verbose"] = True
     return ShmemFunctionalSimulator(dram_init=dram_init, **kwargs)
+
+
+def _effective_tbo_for_thread_block(thread_block_id: int) -> int:
+    """
+    Ask the simulator to derive the effective TBO for the given resident TBID.
+
+    This keeps the test report aligned with the simulator's slot-based TBID
+    residency logic instead of reconstructing the offset manually.
+    """
+    sim = _build_smem_simulator({})
+    probe = Transaction(
+        txn_type=TxnType.SH_LD,
+        thread_id=0,
+        thread_block_id=int(thread_block_id),
+        resident_thread_block_ids=RESIDENT_THREAD_BLOCK_IDS,
+        thread_block_done_bits=[0],
+        shmem_addr=0,
+    )
+    return int(sim._effective_thread_block_offset(probe))
 
 
 def _run_smem_workload(
@@ -514,7 +538,7 @@ def _run_dcache_workload(
 
     Each sh.* lane is preloaded as a cache hit; each global.* lane is routed
     to a fresh tag so the dcache incurs a miss + memory round-trip at the
-    same ``dram_latency_cycles`` budget the SMEM path uses.
+    same 0-cycle synthetic memory budget the SMEM comparison path uses.
     """
     behind = DCACHE["LatchIF"](name="combined_lsu_to_dcache")
     mem_req_if = DCACHE["LatchIF"](name="combined_dcache_to_mem")
@@ -765,14 +789,17 @@ def demo_combined_warp_workload() -> None:
     print("\n=== TEST: Combined Warp Workload (2 warps x 4 back-to-back instructions) ===")
     print(
         f"Warp 0: threads {0}..{NUM_THREADS_PER_WARP - 1}, "
-        f"tbid={WARP0_TBID}, smem_offset=0x{WARP0_TBID * THREAD_BLOCK_SIZE_BYTES:04x}"
+        f"tbid={WARP0_TBID}, calculated_tbo=0x{_effective_tbo_for_thread_block(WARP0_TBID):04x}"
     )
     print(
         f"Warp 1: threads {NUM_THREADS_PER_WARP}..{TOTAL_THREADS - 1}, "
-        f"tbid={WARP1_TBID}, smem_offset=0x{WARP1_TBID * THREAD_BLOCK_SIZE_BYTES:04x}"
+        f"tbid={WARP1_TBID}, calculated_tbo=0x{_effective_tbo_for_thread_block(WARP1_TBID):04x}"
     )
     print(
         f"Per-warp program: global.ld.dram2sram -> sh.st -> sh.ld -> global.st.smem2dram"
+    )
+    print(
+        f"Comparison DRAM latency: {COMPARISON_DRAM_LATENCY_CYCLES} cycles on both SMEM and DCache."
     )
 
     warp0, warp1 = _build_both_warp_programs()
@@ -784,10 +811,9 @@ def demo_combined_warp_workload() -> None:
     _dump_completions(sim)
     _print_smem_phase_table(smem_metrics)
 
-    dram_latency_cycles = int(sim.dram_latency_cycles)
     dcache_cycles, dcache_metrics = _run_dcache_workload(
         warp_programs,
-        dram_latency_cycles=dram_latency_cycles,
+        dram_latency_cycles=COMPARISON_DRAM_LATENCY_CYCLES,
     )
 
     _print_dcache_phase_table(dcache_metrics)

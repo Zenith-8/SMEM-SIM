@@ -1,0 +1,780 @@
+
+================================================================================
+== test_thread_block_offset_system.py  (2026-04-23T22:03:10)
+================================================================================
+
+=== TRACE: Thread-Block Offset Residency Walkthrough ===
+Initial resident vector: slot0=11, slot1=22, slot2=33, slot3=44
+Derived offsets before replacement:
+  tbid=11 -> smem_block=0, calculated_tbo=0x0000, abs=0x0020, bank=8, slot=0
+  tbid=22 -> smem_block=1, calculated_tbo=0x0080, abs=0x00a0, bank=8, slot=1
+  tbid=33 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+  tbid=44 -> smem_block=3, calculated_tbo=0x0180, abs=0x01a0, bank=8, slot=3
+Derived offsets after replacement:
+  tbid=11 -> smem_block=0, calculated_tbo=0x0000, abs=0x0020, bank=8, slot=0
+  tbid=22 -> smem_block=1, calculated_tbo=0x0080, abs=0x00a0, bank=8, slot=1
+  tbid=55 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+  tbid=44 -> smem_block=3, calculated_tbo=0x0180, abs=0x01a0, bank=8, slot=3
+
+Replacement attempt before done bits go all-one:
+  Expected block: thread_block_id 55 cannot take SMEM slot 2: slot is still occupied by thread_block_id 33 (done=0).
+
+Step 1: TBID 33 writes a value into its resident slot.
+  tbid=33 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.st                | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | write_data=0x0000aaaa
+
+------------------------------------------------------------------------------
+  CYCLE 0  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | write_data=0x0000aaaa
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 0  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  ready@1  | write_data=0x0000aaaa
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 1  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | write_data=0x0000aaaa
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #1 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @0, completed @1)  | tbid=33  smem_block=2  | read_data=0x00000000
+
+------------------------------------------------------------------------------
+  CYCLE 1  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=33, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=0, dram_addr=None
+
+Step 2: TBID 33 reads back the value while keeping the slot reserved.
+  tbid=33 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 2 ---
+[DEBUG] Sub-batch 0 | Cycle 2 | Thread  0 | sh.ld                | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | bank_content=0x0000aaaa
+
+------------------------------------------------------------------------------
+  CYCLE 2  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 2  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  ready@3  | bank_content=0x0000aaaa
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 3  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 3  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 4  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 4  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 5  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 5  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 6  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | bank_content=0x0000aaaa  | bank=8  routes=[T00->L00]  value=0x0000aaaa  ready @cycle 6
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #2 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @2, completed @6)  | tbid=33  smem_block=2  | read_data=0x0000aaaa
+
+------------------------------------------------------------------------------
+  CYCLE 6  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=33, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=43690, dram_addr=None
+
+Step 3: TBID 33 performs a global store and marks done bits all-one.
+  tbid=33 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 7 ---
+[DEBUG] Sub-batch 0 | Cycle 7 | Thread  0 | global.st.smem2dram  | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | dram_addr=0x9000
+
+------------------------------------------------------------------------------
+  CYCLE 7  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 7  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  ready@8  | dram_addr=0x9000
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 8  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 8  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue (1):
+    [write_req]  T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000  | dest_dram=0x9000  payload=0x0000aaaa
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 9  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue (1):
+    [write_req]  T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000  | dest_dram=0x9000  payload=0x0000aaaa
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 9  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000  | dest_dram=0x9000  payload=0x0000aaaa  ready @cycle 10
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 10  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=33  smem_block=2  | dram_addr=0x9000  | dest_dram=0x9000  payload=0x0000aaaa  ready @cycle 10
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #3 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @7, completed @10)  | tbid=33  smem_block=2  | dram_addr=0x9000
+
+------------------------------------------------------------------------------
+  CYCLE 10  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:33/done:1, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=33, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=None, dram_addr=36864
+
+Step 4: TBID 55 replaces TBID 33 in slot 2 and writes a new value.
+  tbid=55 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 11 ---
+[DEBUG] Sub-batch 0 | Cycle 11 | Thread  0 | sh.st                | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | write_data=0x0000bbbb
+
+------------------------------------------------------------------------------
+  CYCLE 11  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #4 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | write_data=0x0000bbbb
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 11  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T00 #4 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  ready@12  | write_data=0x0000bbbb
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 12  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue (1):
+    T00 #4 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | write_data=0x0000bbbb
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #4 sh.st                 shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @11, completed @12)  | tbid=55  smem_block=2  | read_data=0x0000aaaa
+
+------------------------------------------------------------------------------
+  CYCLE 12  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=55, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=43690, dram_addr=None
+
+Step 5: TBID 55 reads back from the same calculated TBO/absolute address.
+  tbid=55 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 13 ---
+[DEBUG] Sub-batch 0 | Cycle 13 | Thread  0 | sh.ld                | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | bank_content=0x0000bbbb
+
+------------------------------------------------------------------------------
+  CYCLE 13  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 13  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  ready@14  | bank_content=0x0000bbbb
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 14  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 14  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 15  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 15  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 16  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 16  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 17  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | bank_content=0x0000bbbb  | bank=8  routes=[T00->L00]  value=0x0000bbbb  ready @cycle 17
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #5 sh.ld                 shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @13, completed @17)  | tbid=55  smem_block=2  | read_data=0x0000bbbb
+
+------------------------------------------------------------------------------
+  CYCLE 17  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=55, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=48059, dram_addr=None
+
+Step 6: TBID 55 streams the replacement value back out to DRAM.
+  tbid=55 -> smem_block=2, calculated_tbo=0x0100, abs=0x0120, bank=8, slot=2
+
+[DEBUG] --- SmemArbiter: atomically issuing 1 warp-wide thread transactions into input_queue @cycle 18 ---
+[DEBUG] Sub-batch 0 | Cycle 18 | Thread  0 | global.st.smem2dram  | Addr 0x0020 | AbsAddr 0x0120 | TBO 0x0100 | XOR Map -> Bank  8 | Slot    2 | dram_addr=0x9004
+
+------------------------------------------------------------------------------
+  CYCLE 18  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 18  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  ready@19  | dram_addr=0x9004
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [1] ---
+
+
+------------------------------------------------------------------------------
+  CYCLE 19  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 19  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue (1):
+    [write_req]  T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004  | dest_dram=0x9004  payload=0x0000bbbb
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 20  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue (1):
+    [write_req]  T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004  | dest_dram=0x9004  payload=0x0000bbbb
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> No completions this cycle.
+
+------------------------------------------------------------------------------
+  CYCLE 20  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004  | dest_dram=0x9004  payload=0x0000bbbb  ready @cycle 21
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  CYCLE 21  [BEGIN]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  -> bank  8, slot 2  | tbid=55  smem_block=2  | dram_addr=0x9004  | dest_dram=0x9004  payload=0x0000bbbb  ready @cycle 21
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  >> Completed this cycle (1):
+    T00 #6 global.st.smem2dram   shmem=0x0020  abs=0x0120  tbo=0x0100  (issued @18, completed @21)  | tbid=55  smem_block=2  | dram_addr=0x9004
+
+------------------------------------------------------------------------------
+  CYCLE 21  [END]
+------------------------------------------------------------------------------
+  Resident Thread Blocks: slot0=tbid:11/done:0, slot1=tbid:22/done:0, slot2=tbid:55/done:0, slot3=tbid:44/done:0
+  Input Queue: (empty)
+  SMEM Read Queue: (empty)
+  SMEM Write Queue: (empty)
+  AXI Bus Queue: (empty)
+  Pending DRAM Reads: (empty)
+  Pending DRAM Writes: (empty)
+  Pending Read Crossbar Deliveries: (empty)
+------------------------------------------------------------------------------
+  Completion: tbid=55, smem_block=2, calculated_tbo=0x0100, abs=0x0120, read_data=None, dram_addr=36868
+
+Final resident state:
+  resident_thread_block_ids=[11, 22, 55, 44]
+  dram[0x9000]=0x0000aaaa
+  dram[0x9004]=0x0000bbbb
+
+Completions:
+{'txn_id': 1, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 0, 'cycle_completed': 1, 'thread_id': 0, 'thread_block_id': 33, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': None, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': 0, 'note': '', 'trace': ['cycle 0: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)', 'cycle 0: arbiter -> SMEM Write Queue', 'cycle 1: Write Crossbar -> bank 8, slot 2']}
+  Traceback:
+    cycle 0: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)
+    cycle 0: arbiter -> SMEM Write Queue
+    cycle 1: Write Crossbar -> bank 8, slot 2
+{'txn_id': 2, 'txn_type': 'sh.ld', 'status': 'ok', 'cycle_issued': 2, 'cycle_completed': 6, 'thread_id': 0, 'thread_block_id': 33, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': None, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': 43690, 'note': 'Read returned through 3-cycle Clos read crossbar.', 'trace': ['cycle 2: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)', 'cycle 2: arbiter -> SMEM Read Queue', 'cycle 3: SMEM Read Controller read bank 8, slot 2', 'cycle 3: Clos read crossbar launch (bank 8 -> lane 0), ready cycle 6', 'cycle 6: Clos read crossbar -> thread 0 (lane 0)']}
+  Traceback:
+    cycle 2: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)
+    cycle 2: arbiter -> SMEM Read Queue
+    cycle 3: SMEM Read Controller read bank 8, slot 2
+    cycle 3: Clos read crossbar launch (bank 8 -> lane 0), ready cycle 6
+    cycle 6: Clos read crossbar -> thread 0 (lane 0)
+{'txn_id': 3, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 7, 'cycle_completed': 10, 'thread_id': 0, 'thread_block_id': 33, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': 36864, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': None, 'note': '', 'trace': ['cycle 7: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)', 'cycle 7: arbiter -> SMEM Read Queue', 'cycle 8: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 9: AXI write issued @0x9000, commit due cycle 10', 'cycle 10: AXI write committed @0x9000']}
+  Traceback:
+    cycle 7: accepted by simulator input (thread=0, tbo=0x100, tbid=33, smem_block=2)
+    cycle 7: arbiter -> SMEM Read Queue
+    cycle 8: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 9: AXI write issued @0x9000, commit due cycle 10
+    cycle 10: AXI write committed @0x9000
+{'txn_id': 4, 'txn_type': 'sh.st', 'status': 'ok', 'cycle_issued': 11, 'cycle_completed': 12, 'thread_id': 0, 'thread_block_id': 55, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': None, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': 43690, 'note': '', 'trace': ['cycle 11: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)', 'cycle 11: arbiter -> SMEM Write Queue', 'cycle 12: Write Crossbar -> bank 8, slot 2']}
+  Traceback:
+    cycle 11: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)
+    cycle 11: arbiter -> SMEM Write Queue
+    cycle 12: Write Crossbar -> bank 8, slot 2
+{'txn_id': 5, 'txn_type': 'sh.ld', 'status': 'ok', 'cycle_issued': 13, 'cycle_completed': 17, 'thread_id': 0, 'thread_block_id': 55, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': None, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': 48059, 'note': 'Read returned through 3-cycle Clos read crossbar.', 'trace': ['cycle 13: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)', 'cycle 13: arbiter -> SMEM Read Queue', 'cycle 14: SMEM Read Controller read bank 8, slot 2', 'cycle 14: Clos read crossbar launch (bank 8 -> lane 0), ready cycle 17', 'cycle 17: Clos read crossbar -> thread 0 (lane 0)']}
+  Traceback:
+    cycle 13: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)
+    cycle 13: arbiter -> SMEM Read Queue
+    cycle 14: SMEM Read Controller read bank 8, slot 2
+    cycle 14: Clos read crossbar launch (bank 8 -> lane 0), ready cycle 17
+    cycle 17: Clos read crossbar -> thread 0 (lane 0)
+{'txn_id': 6, 'txn_type': 'global.st.smem2dram', 'status': 'ok', 'cycle_issued': 18, 'cycle_completed': 21, 'thread_id': 0, 'thread_block_id': 55, 'smem_block_id': 2, 'thread_block_offset_effective': 256, 'dram_addr': 36868, 'shmem_addr': 32, 'absolute_shmem_addr': 288, 'read_data': None, 'note': '', 'trace': ['cycle 18: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)', 'cycle 18: arbiter -> SMEM Read Queue', 'cycle 19: SMEM Read Controller -> AXI Bus Queue (write_req)', 'cycle 20: AXI write issued @0x9004, commit due cycle 21', 'cycle 21: AXI write committed @0x9004']}
+  Traceback:
+    cycle 18: accepted by simulator input (thread=0, tbo=0x100, tbid=55, smem_block=2)
+    cycle 18: arbiter -> SMEM Read Queue
+    cycle 19: SMEM Read Controller -> AXI Bus Queue (write_req)
+    cycle 20: AXI write issued @0x9004, commit due cycle 21
+    cycle 21: AXI write committed @0x9004
+
+=== UNIT TESTS ===
+test_fmt_tagged_uses_slot_derived_tbo (__main__.TestDisplayFormatting.test_fmt_tagged_uses_slot_derived_tbo) ... ok
+test_done_bits_all_one_accepts_multiple_encodings (__main__.TestDoneBitsInterpretation.test_done_bits_all_one_accepts_multiple_encodings) ... ok
+test_done_bits_all_one_rejects_partial_or_empty_patterns (__main__.TestDoneBitsInterpretation.test_done_bits_all_one_rejects_partial_or_empty_patterns) ... ok
+test_done_bits_negative_int_raises (__main__.TestDoneBitsInterpretation.test_done_bits_negative_int_raises) ... ok
+test_integer_done_bits_allow_replacement (__main__.TestResidentReplacementRules.test_integer_done_bits_allow_replacement) ... ok
+test_replacement_resets_done_state_for_the_new_resident_thread_block (__main__.TestResidentReplacementRules.test_replacement_resets_done_state_for_the_new_resident_thread_block) ... ok
+test_slot_replacement_is_blocked_until_done_bits_are_all_one (__main__.TestResidentReplacementRules.test_slot_replacement_is_blocked_until_done_bits_are_all_one) ... ok
+test_string_done_bits_allow_replacement (__main__.TestResidentReplacementRules.test_string_done_bits_allow_replacement) ... ok
+test_legacy_thread_block_offset_is_rejected (__main__.TestResidentVectorValidation.test_legacy_thread_block_offset_is_rejected) ... ok
+test_resident_thread_block_ids_must_have_exactly_four_entries (__main__.TestResidentVectorValidation.test_resident_thread_block_ids_must_have_exactly_four_entries) ... ok
+test_transaction_from_dict_parses_tbid_aliases (__main__.TestResidentVectorValidation.test_transaction_from_dict_parses_tbid_aliases) ... ok
+test_all_four_slots_produce_distinct_absolute_addresses (__main__.TestSlotDerivedOffsets.test_all_four_slots_produce_distinct_absolute_addresses) ... ok
+test_existing_resident_mapping_can_be_reused_without_repeating_vector (__main__.TestSlotDerivedOffsets.test_existing_resident_mapping_can_be_reused_without_repeating_vector) ... ok
+test_offset_is_derived_from_resident_slot_not_thread_block_id (__main__.TestSlotDerivedOffsets.test_offset_is_derived_from_resident_slot_not_thread_block_id) ... ok
+test_batch_api_reports_slot_derived_tbo_for_each_completion (__main__.TestUserFacingApis.test_batch_api_reports_slot_derived_tbo_for_each_completion) ... ok
+test_run_single_smem_transaction_reports_slot_derived_tbo (__main__.TestUserFacingApis.test_run_single_smem_transaction_reports_slot_derived_tbo) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.003s
+
+OK

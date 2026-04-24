@@ -1,0 +1,67 @@
+Full Streamed SAXPY Kernel Bank-Conflict Benchmark
+==================================================
+
+Kernel Shape
+------------
+if (i < n) y[i] = a * x[i] + y[i];
+
+Configuration
+-------------
+- Conflict depth swept from 1-way to 32-way bank contention
+- Simulator thread count is fixed at 32 threads for every point
+- Each point runs 100 streamed SAXPY dummy memory interactions
+- Conflict depth k means the first k lanes form the active same-bank conflict cohort in every streamed interaction
+- DCache/Scratchpad comparison latency: 0 cycles
+- Scratchpad read crossbar latency: 3 cycles
+
+Modeled Memory Stream
+---------------------
+- DCache: global load x, global load y, store y, then flush dirty output lines.
+- Scratchpad: global load x->scratchpad, global load y->scratchpad, sh.ld x, sh.ld y, sh.st y, global.st y->dram.
+- Only the active conflict cohort changes across the sweep; the 32-thread simulator configuration stays fixed.
+- Validation guard: every non-multicast sh.ld in the first warp has a unique (bank, absolute_addr) key, so these cases are real bank conflicts rather than multicast merges.
+- Queue cadence model: the Scratchpad read queue dequeues one request per cycle into a 3-stage pipelined Clos return path, so at most 3 read responses are overlaid at once; the write side also dequeues one request per cycle.
+- Therefore increasing k increases the number of serialized logical requests driven through the one-per-cycle queues across the 100-interaction stream.
+
+32-way Summary
+--------------
+- Full streamed kernel: DCache = 38566 cycles, Scratchpad = 21000 cycles
+
+Dep |  D$ Full |  Scratchpad Full
+----------------------------------
+  1 |     4510 |             2400
+  2 |     5518 |             3000
+  3 |     6626 |             3600
+  4 |     7734 |             4200
+  5 |     8842 |             4800
+  6 |     9950 |             5400
+  7 |    11058 |             6000
+  8 |    12166 |             6600
+  9 |    13266 |             7200
+ 10 |    14366 |             7800
+ 11 |    15466 |             8400
+ 12 |    16566 |             9000
+ 13 |    17666 |             9600
+ 14 |    18766 |            10200
+ 15 |    19866 |            10800
+ 16 |    20966 |            11400
+ 17 |    22067 |            12000
+ 18 |    23168 |            12600
+ 19 |    24269 |            13200
+ 20 |    25370 |            13800
+ 21 |    26471 |            14400
+ 22 |    27572 |            15000
+ 23 |    28673 |            15600
+ 24 |    29774 |            16200
+ 25 |    30873 |            16800
+ 26 |    31972 |            17400
+ 27 |    33071 |            18000
+ 28 |    34170 |            18600
+ 29 |    35269 |            19200
+ 30 |    36368 |            19800
+ 31 |    37467 |            20400
+ 32 |    38566 |            21000
+
+CSV: saxpy_full_stream_kernel_conflict.csv
+Report: saxpy_full_stream_kernel_conflict_report.txt
+Plot: saxpy_full_stream_kernel_conflict_plot.png

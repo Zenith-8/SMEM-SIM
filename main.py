@@ -162,6 +162,60 @@ class Completion:
 
 
 DEFAULT_SMEM_CONFIG_PATH = Path(".config")
+DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS = 4
+READ_CROSSBAR_PIPELINE_CYCLES = 3
+
+
+def _resolve_smem_capacity_fields(
+    *,
+    resident_thread_block_slots: int = DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS,
+    thread_block_size_bytes: Optional[int] = None,
+    total_smem_size_bytes: Optional[int] = None,
+) -> Tuple[int, Optional[int], Optional[int]]:
+    """
+    Resolve and validate the resident-slot / block-size / total-size trio.
+
+    The simulator models SMEM capacity as:
+
+    ``total_smem_size_bytes = resident_thread_block_slots * thread_block_size_bytes``
+
+    Any two of the three values are enough to derive the third. When all three
+    are provided, the block-size/slot-count product is treated as authoritative
+    and ``total_smem_size_bytes`` is normalized to that product.
+    """
+    slots = int(resident_thread_block_slots)
+    if slots <= 0:
+        raise ValueError("resident_thread_block_slots must be > 0.")
+
+    block_size = (
+        int(thread_block_size_bytes)
+        if thread_block_size_bytes is not None
+        else None
+    )
+    total_size = (
+        int(total_smem_size_bytes)
+        if total_smem_size_bytes is not None
+        else None
+    )
+
+    if block_size is not None and block_size <= 0:
+        raise ValueError("thread_block_size_bytes must be > 0 when provided.")
+    if total_size is not None and total_size <= 0:
+        raise ValueError("total_smem_size_bytes must be > 0 when provided.")
+
+    if total_size is None and block_size is not None:
+        total_size = slots * block_size
+    elif total_size is not None and block_size is None:
+        if total_size % slots != 0:
+            raise ValueError(
+                "total_smem_size_bytes must be divisible by "
+                "resident_thread_block_slots."
+        )
+        block_size = total_size // slots
+    elif total_size is not None and block_size is not None:
+        total_size = slots * block_size
+
+    return slots, block_size, total_size
 
 
 @dataclass
@@ -174,7 +228,9 @@ class SmemSimulatorConfig:
     dram_latency_cycles: int = 1
     arbiter_issue_width: int = 4
     num_threads: int = 1
+    resident_thread_block_slots: int = DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS
     thread_block_size_bytes: Optional[int] = None
+    total_smem_size_bytes: Optional[int] = None
     read_crossbar_pipeline_cycles: int = 3
 
     @classmethod
@@ -194,17 +250,33 @@ class SmemSimulatorConfig:
         if not isinstance(payload, dict):
             raise TypeError("SMEM config payload must be a dict.")
 
+        resident_thread_block_slots = int(
+            payload.get(
+                "resident_thread_block_slots",
+                payload.get("num_blocks", DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS),
+            )
+        )
+        _, thread_block_size_bytes, total_smem_size_bytes = _resolve_smem_capacity_fields(
+            resident_thread_block_slots=resident_thread_block_slots,
+            thread_block_size_bytes=payload.get(
+                "thread_block_size_bytes",
+                payload.get("block_size_bytes"),
+            ),
+            total_smem_size_bytes=payload.get(
+                "total_smem_size_bytes",
+                payload.get("total_smem_size"),
+            ),
+        )
+
         return cls(
             num_banks=int(payload.get("num_banks", 32)),
             word_bytes=int(payload.get("word_bytes", 4)),
             dram_latency_cycles=int(payload.get("dram_latency_cycles", 1)),
             arbiter_issue_width=int(payload.get("arbiter_issue_width", 4)),
             num_threads=int(payload.get("num_threads", 1)),
-            thread_block_size_bytes=(
-                int(payload["thread_block_size_bytes"])
-                if payload.get("thread_block_size_bytes") is not None
-                else None
-            ),
+            resident_thread_block_slots=resident_thread_block_slots,
+            thread_block_size_bytes=thread_block_size_bytes,
+            total_smem_size_bytes=total_smem_size_bytes,
             read_crossbar_pipeline_cycles=int(
                 payload.get(
                     "read_crossbar_pipeline_cycles",
@@ -247,7 +319,9 @@ class SmemSimulatorConfig:
             "dram_latency_cycles": int(self.dram_latency_cycles),
             "arbiter_issue_width": int(self.arbiter_issue_width),
             "num_threads": int(self.num_threads),
+            "resident_thread_block_slots": int(self.resident_thread_block_slots),
             "thread_block_size_bytes": self.thread_block_size_bytes,
+            "total_smem_size_bytes": self.total_smem_size_bytes,
             "read_crossbar_pipeline_cycles": int(self.read_crossbar_pipeline_cycles),
         }
 
@@ -292,11 +366,6 @@ class _CompatDMemResponse:
 
 
 _DMEM_RESPONSE_CLS = _SimDMemResponse or _CompatDMemResponse
-
-DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS = 4
-READ_CROSSBAR_PIPELINE_CYCLES = 3
-
-
 class ShmemFunctionalSimulator:
     """
     Functional-level SMEM model based on the provided flow:
@@ -324,7 +393,9 @@ class ShmemFunctionalSimulator:
         arbiter_issue_width: int = 4,
         num_threads: int = 1,
         thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+        resident_thread_block_slots: int = DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS,
         thread_block_size_bytes: Optional[int] = None,
+        total_smem_size_bytes: Optional[int] = None,
         read_crossbar_pipeline_cycles: int = READ_CROSSBAR_PIPELINE_CYCLES,
         verbose: bool = False,
     ) -> None:
@@ -338,7 +409,9 @@ class ShmemFunctionalSimulator:
             dram_latency_cycles: Latency of DRAM accesses in cycles.
             arbiter_issue_width: Number of requests the arbiter can issue per cycle.
             num_threads: Total number of threads.
+            resident_thread_block_slots: Number of resident SMEM thread-block slots.
             thread_block_size_bytes: Size, in bytes, of one resident SMEM thread-block slot.
+            total_smem_size_bytes: Total modeled SMEM capacity, in bytes.
             read_crossbar_pipeline_cycles: Latency, in cycles, of the pipelined Clos read crossbar.
             verbose: When True, print per-cycle state summaries during step().
         """
@@ -352,10 +425,18 @@ class ShmemFunctionalSimulator:
             raise ValueError("arbiter_issue_width must be > 0.")
         if num_threads <= 0:
             raise ValueError("num_threads must be > 0.")
-        if thread_block_size_bytes is not None and int(thread_block_size_bytes) <= 0:
-            raise ValueError("thread_block_size_bytes must be > 0 when provided.")
         if int(read_crossbar_pipeline_cycles) <= 0:
             raise ValueError("read_crossbar_pipeline_cycles must be > 0.")
+
+        (
+            resident_thread_block_slots,
+            thread_block_size_bytes,
+            total_smem_size_bytes,
+        ) = _resolve_smem_capacity_fields(
+            resident_thread_block_slots=resident_thread_block_slots,
+            thread_block_size_bytes=thread_block_size_bytes,
+            total_smem_size_bytes=total_smem_size_bytes,
+        )
 
         self.verbose = verbose
         self.num_banks = num_banks
@@ -370,23 +451,29 @@ class ShmemFunctionalSimulator:
                 "Use thread_block_size_bytes plus thread_block_id/"
                 "resident_thread_block_ids."
             )
+        self.resident_thread_block_slots = int(resident_thread_block_slots)
         self.thread_block_size_bytes = (
             int(thread_block_size_bytes)
             if thread_block_size_bytes is not None
             else None
         )
+        self.total_smem_size_bytes = (
+            int(total_smem_size_bytes)
+            if total_smem_size_bytes is not None
+            else None
+        )
         self.read_crossbar_pipeline_cycles = int(read_crossbar_pipeline_cycles)
         self.resident_thread_block_ids: List[Optional[int]] = [
             None
-            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+            for _ in range(self.resident_thread_block_slots)
         ]
         self.resident_thread_block_done_bits: List[Any] = [
             None
-            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+            for _ in range(self.resident_thread_block_slots)
         ]
         self.resident_thread_block_done: List[bool] = [
             False
-            for _ in range(DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+            for _ in range(self.resident_thread_block_slots)
         ]
         self.read_crossbar = ClosNetwork()
 
@@ -442,7 +529,24 @@ class ShmemFunctionalSimulator:
         """
         self._validate_transaction(transaction)
         thread_id = int(transaction.thread_id)
-        effective_offset = self._effective_thread_block_offset(transaction)
+        smem_block_id = self._smem_block_id_for_transaction(transaction)
+        if smem_block_id is not None:
+            if self.thread_block_size_bytes is None:
+                raise ValueError(
+                    "thread_block_size_bytes must be configured when using "
+                    "thread_block_id-based SMEM residency."
+                )
+            effective_offset = int(smem_block_id) * int(self.thread_block_size_bytes)
+        else:
+            effective_offset = 0
+        accept_parts = [
+            f"thread={thread_id}",
+            f"tbo=0x{effective_offset:x}",
+        ]
+        if transaction.thread_block_id is not None:
+            accept_parts.append(f"tbid={int(transaction.thread_block_id)}")
+        if smem_block_id is not None:
+            accept_parts.append(f"smem_block={int(smem_block_id)}")
         tagged = {
             "txn_id": self._next_txn_id,
             "txn": transaction,
@@ -450,7 +554,7 @@ class ShmemFunctionalSimulator:
             "ready_cycle": self.cycle,
             "trace": [
                 f"cycle {self.cycle}: accepted by simulator input "
-                f"(thread={thread_id}, tbo=0x{effective_offset:x})"
+                f"({', '.join(accept_parts)})"
             ],
         }
         self._next_txn_id += 1
@@ -479,6 +583,8 @@ class ShmemFunctionalSimulator:
     @staticmethod
     def _normalize_resident_thread_block_ids(
         resident_thread_block_ids: Sequence[Optional[int]],
+        *,
+        expected_slots: int = DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS,
     ) -> Tuple[Optional[int], ...]:
         """
         Normalize the resident SMEM thread-block ID vector to the fixed slot count.
@@ -487,10 +593,10 @@ class ShmemFunctionalSimulator:
             int(tbid) if tbid is not None else None
             for tbid in resident_thread_block_ids
         )
-        if len(normalized) != DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS:
+        if len(normalized) != int(expected_slots):
             raise ValueError(
                 f"resident_thread_block_ids must contain exactly "
-                f"{DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS} entries."
+                f"{int(expected_slots)} entries."
             )
         return normalized
 
@@ -543,7 +649,10 @@ class ShmemFunctionalSimulator:
         """
         resident_ids = txn.resident_thread_block_ids
         if resident_ids is not None:
-            incoming_ids = self._normalize_resident_thread_block_ids(resident_ids)
+            incoming_ids = self._normalize_resident_thread_block_ids(
+                resident_ids,
+                expected_slots=self.resident_thread_block_slots,
+            )
             for slot_idx, incoming_tbid in enumerate(incoming_ids):
                 resident_tbid = self.resident_thread_block_ids[slot_idx]
                 if resident_tbid == incoming_tbid:
@@ -580,7 +689,8 @@ class ShmemFunctionalSimulator:
 
         if txn.resident_thread_block_ids is not None:
             requested_ids = self._normalize_resident_thread_block_ids(
-                txn.resident_thread_block_ids
+                txn.resident_thread_block_ids,
+                expected_slots=self.resident_thread_block_slots,
             )
             if int(txn.thread_block_id) in requested_ids:
                 requested_slot = requested_ids.index(int(txn.thread_block_id))
@@ -615,26 +725,88 @@ class ShmemFunctionalSimulator:
         )
         return absolute, bank, bank_slot
 
-    def _launch_read_crossbar(self, tagged: Dict[str, Any], bank: int, value: int) -> None:
+    def _multicast_read_key(self, txn: Transaction) -> Optional[Tuple[int, int]]:
+        """
+        Return a coalescing key for read-side multicast candidates.
+
+        Only ``sh.ld`` transactions can exploit the Clos read crossbar's
+        multicast capability: multiple lanes reading the same final shared
+        memory word can be serviced by one bank read plus one multicast flit.
+        """
+        if txn.txn_type is not TxnType.SH_LD:
+            return None
+        absolute = self._absolute_smem_addr(txn)
+        bank = self._bank_for_transaction(txn)
+        return (int(bank), int(absolute))
+
+    def _multicast_group_members(
+        self, tagged: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Return the logical read cohort represented by a queue entry.
+        """
+        return [tagged, *list(tagged.get("multicast_peers", []))]
+
+    def _can_multicast_merge(
+        self, leader: Dict[str, Any], candidate: Dict[str, Any]
+    ) -> bool:
+        """
+        Decide whether ``candidate`` can merge into ``leader``'s multicast read.
+
+        The Clos fabric fans one flit out by destination-lane mask, so every
+        merged logical recipient must map onto a distinct Clos thread lane.
+        """
+        candidate_lane = self._clos_thread_lane(int(candidate["txn"].thread_id))
+        for member in self._multicast_group_members(leader):
+            lane = self._clos_thread_lane(int(member["txn"].thread_id))
+            if int(lane) == int(candidate_lane):
+                return False
+        return True
+
+    def _launch_read_crossbar(
+        self,
+        tagged_group: Sequence[Dict[str, Any]],
+        bank: int,
+        value: int,
+    ) -> None:
         """
         Launch a load response into the 3-cycle pipelined Clos read crossbar.
         """
-        txn: Transaction = tagged["txn"]
-        lane = self._clos_thread_lane(int(txn.thread_id))
+        recipients: List[Dict[str, Any]] = []
+        dest_mask = 0
         ready_cycle = self.cycle + int(self.read_crossbar_pipeline_cycles)
+        is_multicast = len(tagged_group) > 1
+
+        for tagged in tagged_group:
+            txn: Transaction = tagged["txn"]
+            lane = self._clos_thread_lane(int(txn.thread_id))
+            if dest_mask & (1 << int(lane)):
+                raise RuntimeError(
+                    f"Clos read crossbar multicast collision on lane {lane} "
+                    f"in cycle {self.cycle}."
+                )
+            dest_mask |= 1 << int(lane)
+            recipients.append(
+                {
+                    "tagged": tagged,
+                    "lane": int(lane),
+                    "thread_id": int(txn.thread_id),
+                }
+            )
+            launch_kind = "multicast launch" if is_multicast else "launch"
+            tagged["trace"].append(
+                f"cycle {self.cycle}: Clos read crossbar {launch_kind} "
+                f"(bank {int(bank)} -> lane {int(lane)}), ready cycle {ready_cycle}"
+            )
+
         self.pending_read_crossbar_deliveries.append(
             {
                 "ready_cycle": ready_cycle,
-                "tagged": tagged,
                 "bank": int(bank),
-                "lane": lane,
-                "thread_id": int(txn.thread_id),
+                "dest_mask": int(dest_mask),
                 "value": int(value) & self.word_mask,
+                "recipients": recipients,
             }
-        )
-        tagged["trace"].append(
-            f"cycle {self.cycle}: launched into Clos read crossbar "
-            f"(bank {int(bank)} -> lane {lane}), ready cycle {ready_cycle}"
         )
 
     def _service_read_crossbar(self) -> None:
@@ -663,42 +835,50 @@ class ShmemFunctionalSimulator:
                     f"in cycle {self.cycle}."
                 )
             flits_from_banks[bank] = ClosFlit.make(
-                dest_mask=(1 << int(event["lane"])),
+                dest_mask=int(event["dest_mask"]),
                 data=int(event["value"]),
                 error=CLOS_ERR_GOOD,
             )
 
         deliveries = self.read_crossbar.send(flits_from_banks)
         for event in ready_events:
-            lane = int(event["lane"])
-            thread_id = int(event["thread_id"])
-            tagged = event["tagged"]
-            rxs = deliveries.get(lane, [])
-            if not rxs:
-                raise RuntimeError(
-                    f"Clos read crossbar dropped delivery for thread {thread_id} "
-                    f"(lane {lane}) in cycle {self.cycle}."
-                )
+            recipients = list(event.get("recipients", []))
+            is_multicast = len(recipients) > 1
+            for recipient in recipients:
+                lane = int(recipient["lane"])
+                thread_id = int(recipient["thread_id"])
+                tagged = recipient["tagged"]
+                rxs = deliveries.get(lane, [])
+                if not rxs:
+                    raise RuntimeError(
+                        f"Clos read crossbar dropped delivery for thread {thread_id} "
+                        f"(lane {lane}) in cycle {self.cycle}."
+                    )
 
-            data, error = rxs.pop(0)
-            if int(error) != int(CLOS_ERR_GOOD):
-                raise RuntimeError(
-                    f"Clos read crossbar returned error {error} for thread {thread_id} "
-                    f"in cycle {self.cycle}."
-                )
+                data, error = rxs.pop(0)
+                if int(error) != int(CLOS_ERR_GOOD):
+                    raise RuntimeError(
+                        f"Clos read crossbar returned error {error} for thread {thread_id} "
+                        f"in cycle {self.cycle}."
+                    )
 
-            tagged["trace"].append(
-                f"cycle {self.cycle}: Clos read crossbar -> thread {thread_id} "
-                f"(lane {lane})"
-            )
-            self._complete(
-                tagged,
-                read_data=int(data) & self.word_mask,
-                note=(
-                    f"Read returned through {self.read_crossbar_pipeline_cycles}-cycle "
-                    f"Clos read crossbar."
-                ),
-            )
+                route_note = (
+                    "Clos multicast read crossbar"
+                    if is_multicast
+                    else "Clos read crossbar"
+                )
+                tagged["trace"].append(
+                    f"cycle {self.cycle}: {route_note} -> thread {thread_id} "
+                    f"(lane {lane})"
+                )
+                self._complete(
+                    tagged,
+                    read_data=int(data) & self.word_mask,
+                    note=(
+                        f"Read returned through {self.read_crossbar_pipeline_cycles}-cycle "
+                        f"{route_note}."
+                    ),
+                )
 
         self.pending_read_crossbar_deliveries = next_pending
 
@@ -805,6 +985,9 @@ class ShmemFunctionalSimulator:
             "banks": [dict(bank) for bank in self.banks],
             "resident_thread_block_ids": list(self.resident_thread_block_ids),
             "resident_thread_block_done": list(self.resident_thread_block_done),
+            "resident_thread_block_slots": int(self.resident_thread_block_slots),
+            "thread_block_size_bytes": self.thread_block_size_bytes,
+            "total_smem_size_bytes": self.total_smem_size_bytes,
             "pending_read_crossbar_deliveries": [
                 dict(event) for event in self.pending_read_crossbar_deliveries
             ],
@@ -850,11 +1033,13 @@ class ShmemFunctionalSimulator:
 
         issued_count = 0
         deferred: Deque[Dict[str, Any]] = deque()
+        issued_multicast_leaders: Dict[Tuple[int, int], Dict[str, Any]] = {}
 
         while self.input_queue:
             tagged = self.input_queue.popleft()
             txn: Transaction = tagged["txn"]
             bank = self._bank_for_transaction(txn)
+            multicast_key = self._multicast_read_key(txn)
 
             if issued_count >= self.arbiter_issue_width:
                 # Arbiter saturated this cycle; keep the rest in FIFO order.
@@ -862,6 +1047,23 @@ class ShmemFunctionalSimulator:
                 continue
 
             if bank in banks_issued_this_cycle:
+                leader = (
+                    issued_multicast_leaders.get(multicast_key)
+                    if multicast_key is not None
+                    else None
+                )
+                if leader is not None and self._can_multicast_merge(leader, tagged):
+                    leader.setdefault("multicast_peers", []).append(tagged)
+                    leader_txn: Transaction = leader["txn"]
+                    tagged["trace"].append(
+                        f"cycle {self.cycle}: arbiter multicast-merged with "
+                        f"thread {int(leader_txn.thread_id)} on bank {bank}"
+                    )
+                    leader["trace"].append(
+                        f"cycle {self.cycle}: arbiter multicast-merged thread "
+                        f"{int(txn.thread_id)}"
+                    )
+                    continue
                 # Bank already claimed by an earlier-lane request this cycle.
                 # Defer this lane to a later cycle but keep scanning the tail
                 # for requests to still-free banks.
@@ -875,6 +1077,9 @@ class ShmemFunctionalSimulator:
             issued_count += 1
 
             if txn.txn_type in (TxnType.SH_LD, TxnType.GLOBAL_ST_SMEM_TO_DRAM):
+                if multicast_key is not None:
+                    tagged.setdefault("multicast_peers", [])
+                    issued_multicast_leaders[multicast_key] = tagged
                 self._enqueue_for_next_cycle(self.smem_read_queue, tagged)
                 tagged["trace"].append(f"cycle {self.cycle}: arbiter -> SMEM Read Queue")
             else:
@@ -917,10 +1122,19 @@ class ShmemFunctionalSimulator:
         if txn.txn_type == TxnType.SH_LD:
             # Read the bank-selected word, then return it through the pipelined Clos read crossbar.
             value = self.banks[bank].get(bank_slot, 0)
+            multicast_group = self._multicast_group_members(tagged)
             tagged["trace"].append(
                 f"cycle {self.cycle}: SMEM Read Controller read bank {bank}, slot {bank_slot}"
             )
-            self._launch_read_crossbar(tagged, bank, value)
+            if len(multicast_group) > 1:
+                leader_tid = int(txn.thread_id)
+                for peer in tagged.get("multicast_peers", []):
+                    peer_txn: Transaction = peer["txn"]
+                    peer["trace"].append(
+                        f"cycle {self.cycle}: SMEM Read Controller multicast-read "
+                        f"bank {bank}, slot {bank_slot} with thread {leader_tid}"
+                    )
+            self._launch_read_crossbar(multicast_group, bank, value)
             return
 
         if txn.txn_type == TxnType.GLOBAL_ST_SMEM_TO_DRAM:
@@ -1418,11 +1632,22 @@ class ShmemFunctionalSimulator:
                 f"({len(self.pending_read_crossbar_deliveries)}):"
             )
             for event in self.pending_read_crossbar_deliveries:
-                tagged = event["tagged"]
+                recipients = list(event.get("recipients", []))
+                if recipients:
+                    first_tagged = recipients[0]["tagged"]
+                    thread_desc = ", ".join(
+                        f"T{int(recipient['thread_id']):02d}->L{int(recipient['lane']):02d}"
+                        for recipient in recipients
+                    )
+                else:
+                    first_tagged = event["tagged"]
+                    thread_desc = (
+                        f"T{int(event['thread_id']):02d}->L{int(event['lane']):02d}"
+                    )
                 print(
-                    f"    {self._fmt_tagged(tagged)}"
+                    f"    {self._fmt_tagged(first_tagged)}"
                     f"  | bank={int(event['bank'])}"
-                    f"  lane={int(event['lane'])}"
+                    f"  routes=[{thread_desc}]"
                     f"  value=0x{int(event['value']) & self.word_mask:08x}"
                     f"  ready @cycle {int(event['ready_cycle'])}"
                 )
@@ -1488,7 +1713,10 @@ class ShmemFunctionalSimulator:
         if txn.thread_block_id is not None:
             int(txn.thread_block_id)
         if txn.resident_thread_block_ids is not None:
-            self._normalize_resident_thread_block_ids(txn.resident_thread_block_ids)
+            self._normalize_resident_thread_block_ids(
+                txn.resident_thread_block_ids,
+                expected_slots=self.resident_thread_block_slots,
+            )
 
         # Ensure that all transaction types that interact with shared memory have a valid shmem_addr
         if txn.txn_type in (
@@ -1519,7 +1747,9 @@ def _resolve_simulator_kwargs(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    resident_thread_block_slots: Optional[int] = None,
     thread_block_size_bytes: Optional[int] = None,
+    total_smem_size_bytes: Optional[int] = None,
     read_crossbar_pipeline_cycles: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
@@ -1532,7 +1762,9 @@ def _resolve_simulator_kwargs(
         dram_latency_cycles: Latency of DRAM accesses in cycles.
         arbiter_issue_width: Number of requests the arbiter can issue per cycle.
         num_threads: Total number of threads.
+        resident_thread_block_slots: Number of resident SMEM thread-block slots.
         thread_block_size_bytes: Size, in bytes, of one resident SMEM thread-block slot.
+        total_smem_size_bytes: Total modeled SMEM capacity, in bytes.
         read_crossbar_pipeline_cycles: Latency of the pipelined Clos read crossbar.
         
     Returns:
@@ -1546,13 +1778,51 @@ def _resolve_simulator_kwargs(
         )
     cfg = load_smem_config(config_path)
     resolved = cfg.to_sim_kwargs()
+
+    explicit_slots = resident_thread_block_slots is not None
+    explicit_block_size = thread_block_size_bytes is not None
+    explicit_total_size = total_smem_size_bytes is not None
+
+    merged_slots = (
+        resident_thread_block_slots
+        if explicit_slots
+        else resolved.get("resident_thread_block_slots", DEFAULT_RESIDENT_THREAD_BLOCK_SLOTS)
+    )
+    merged_block_size = (
+        thread_block_size_bytes
+        if explicit_block_size
+        else resolved.get("thread_block_size_bytes")
+    )
+    merged_total_size = (
+        total_smem_size_bytes
+        if explicit_total_size
+        else resolved.get("total_smem_size_bytes")
+    )
+
+    if explicit_total_size and not explicit_block_size:
+        merged_block_size = None
+    if (explicit_slots or explicit_block_size) and not explicit_total_size:
+        merged_total_size = None
+
+    (
+        merged_slots,
+        merged_block_size,
+        merged_total_size,
+    ) = _resolve_smem_capacity_fields(
+        resident_thread_block_slots=merged_slots,
+        thread_block_size_bytes=merged_block_size,
+        total_smem_size_bytes=merged_total_size,
+    )
+    resolved["resident_thread_block_slots"] = merged_slots
+    resolved["thread_block_size_bytes"] = merged_block_size
+    resolved["total_smem_size_bytes"] = merged_total_size
+
     overrides = {
         "num_banks": num_banks,
         "word_bytes": word_bytes,
         "dram_latency_cycles": dram_latency_cycles,
         "arbiter_issue_width": arbiter_issue_width,
         "num_threads": num_threads,
-        "thread_block_size_bytes": thread_block_size_bytes,
         "read_crossbar_pipeline_cycles": read_crossbar_pipeline_cycles,
     }
     for key, value in overrides.items():
@@ -1572,7 +1842,9 @@ def run_smem_functional_sim(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    resident_thread_block_slots: Optional[int] = None,
     thread_block_size_bytes: Optional[int] = None,
+    total_smem_size_bytes: Optional[int] = None,
     read_crossbar_pipeline_cycles: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
@@ -1585,13 +1857,15 @@ def run_smem_functional_sim(
     - write_data: int (required for sh.st)
     - thread_id: int (optional, default 0)
     - thread_block_id / tbid: int (optional resident thread-block ID)
-    - resident_thread_block_ids / tbids: 4-entry vector mapping SMEM slots to TBIDs
+    - resident_thread_block_ids / tbids: resident-slot vector mapping SMEM slots to TBIDs
     - thread_block_done_bits / done_bits: completion bits for the transaction's TBID
 
     Global thread parameters:
     - num_threads: total thread count in this simulation instance
+    - resident_thread_block_slots: number of resident SMEM thread-block slots
     - thread_block_size_bytes: when TBID residency is used, offset =
       smem_block_id * thread_block_size_bytes.
+    - total_smem_size_bytes: total modeled SMEM capacity in bytes.
     - read_crossbar_pipeline_cycles: latency of the pipelined Clos read crossbar.
 
     Config:
@@ -1606,7 +1880,9 @@ def run_smem_functional_sim(
         arbiter_issue_width=arbiter_issue_width,
         num_threads=num_threads,
         thread_block_offsets=thread_block_offsets,
+        resident_thread_block_slots=resident_thread_block_slots,
         thread_block_size_bytes=thread_block_size_bytes,
+        total_smem_size_bytes=total_smem_size_bytes,
         read_crossbar_pipeline_cycles=read_crossbar_pipeline_cycles,
     )
     sim = ShmemFunctionalSimulator(dram_init=dram_init, **sim_kwargs)
@@ -1629,7 +1905,9 @@ def run_single_smem_transaction(
     arbiter_issue_width: Optional[int] = None,
     num_threads: Optional[int] = None,
     thread_block_offsets: Optional[Dict[int, int] | List[int] | Tuple[int, ...]] = None,
+    resident_thread_block_slots: Optional[int] = None,
     thread_block_size_bytes: Optional[int] = None,
+    total_smem_size_bytes: Optional[int] = None,
     read_crossbar_pipeline_cycles: Optional[int] = None,
     thread_block_id: Optional[int] = None,
     resident_thread_block_ids: Optional[Sequence[Optional[int]]] = None,
@@ -1658,7 +1936,9 @@ def run_single_smem_transaction(
         arbiter_issue_width=arbiter_issue_width,
         num_threads=num_threads,
         thread_block_offsets=thread_block_offsets,
+        resident_thread_block_slots=resident_thread_block_slots,
         thread_block_size_bytes=thread_block_size_bytes,
+        total_smem_size_bytes=total_smem_size_bytes,
         read_crossbar_pipeline_cycles=read_crossbar_pipeline_cycles,
     )
     sim_kwargs["num_threads"] = max(int(sim_kwargs["num_threads"]), int(thread_id) + 1)
@@ -2323,8 +2603,9 @@ def test_32_threads_different_addresses() -> None:
 
 def test_divergence() -> None:
     """
-    Bank-conflict scenario: all 32 threads hit the same shmem_addr (bank 0).
-    Only 1 request per bank per sub-batch, so we need exactly N sub-batches.
+    Multicast-read scenario: all 32 threads hit the same shmem_addr (bank 0).
+    The arbiter should coalesce the warp into one multicast read and let the
+    Clos read crossbar fan the value back out to every lane.
     """
     print("\n=== TEST: Divergence -- All Threads Hit Same Bank ===")
     num_threads = 32
@@ -2340,8 +2621,8 @@ def test_divergence() -> None:
     while sim._has_pending_work():
         sim.step()
 
-    assert result['num_sub_batches'] == num_threads, (
-        f"Expected {num_threads} sub-batches (one per conflicting txn), "
+    assert result['num_sub_batches'] == 1, (
+        f"Expected 1 multicast arbiter cycle, "
         f"got {result['num_sub_batches']}"
     )
     print(
@@ -2383,9 +2664,8 @@ def test_integration_smem_arbiter() -> None:
 def test_multicast_divergence() -> None:
     """
     Multi-way bank conflict: half the threads hit bank 0, half hit bank 1.
-    Each sub-batch can service at most min(2, issue_width) transactions
-    (one per bank), so the number of sub-batches depends on both the
-    conflict depth (16) and the issue width.
+    Each bank's identical-address read should coalesce into one multicast
+    request, so the arbiter only needs to schedule one logical read per bank.
     """
     print("\n=== TEST: Multicast Divergence (2-bank, 16-way conflict) ===")
     sim = _sim_from_config(num_threads=32)
@@ -2406,8 +2686,9 @@ def test_multicast_divergence() -> None:
     while sim._has_pending_work():
         sim.step()
 
-    per_batch = min(2, sim.arbiter_issue_width)
-    expected_batches = -(-len(txns) // per_batch)
+    logical_reads = 2
+    per_batch = min(logical_reads, sim.arbiter_issue_width)
+    expected_batches = -(-logical_reads // per_batch)
     assert result['num_sub_batches'] == expected_batches, (
         f"Expected {expected_batches} sub-batches "
         f"(per_batch={per_batch}, issue_width={sim.arbiter_issue_width}), "

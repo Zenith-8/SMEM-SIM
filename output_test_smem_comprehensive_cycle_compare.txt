@@ -1,8 +1,19 @@
 
 ================================================================================
-== test_smem_comprehensive_cycle_compare.py  (2026-04-17T17:18:12)
+== test_smem_comprehensive_cycle_compare.py  (2026-04-23T22:03:10)
 ================================================================================
 
+test_same_address_sh_ld_multicasts_in_one_arbiter_cycle (__main__.TestArbiterMulticast.test_same_address_sh_ld_multicasts_in_one_arbiter_cycle) ... 
+[DEBUG] --- SmemArbiter: atomically issuing 4 warp-wide thread transactions into input_queue @cycle 0 ---
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  0 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0xa1b2c3d4
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  1 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0xa1b2c3d4
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  2 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0xa1b2c3d4
+[DEBUG] Sub-batch 0 | Cycle 0 | Thread  3 | sh.ld                | Addr 0x0020 | AbsAddr 0x0020 | TBO 0x0000 | XOR Map -> Bank  8 | Slot    0 | bank_content=0xa1b2c3d4
+[DEBUG] --- SmemArbiter: warp cleared arbiter in 1 cycle(s); per-cycle issue counts = [4] ---
+
+ok
+test_32_way_same_bank_reads_keep_only_three_crossbar_responses_in_flight (__main__.TestConflictQueueCadence.test_32_way_same_bank_reads_keep_only_three_crossbar_responses_in_flight) ... ok
+test_32_way_same_bank_writes_complete_one_per_cycle (__main__.TestConflictQueueCadence.test_32_way_same_bank_writes_complete_one_per_cycle) ... ok
 test_compat_response_has_attribute_access (__main__.TestCycleComparisonVsDCache.test_compat_response_has_attribute_access) ... ok
 test_compat_stage_handles_all_smem_transaction_types (__main__.TestCycleComparisonVsDCache.test_compat_stage_handles_all_smem_transaction_types) ... ok
 test_dict_generic_type_with_rw_mode_falls_back_cleanly (__main__.TestCycleComparisonVsDCache.test_dict_generic_type_with_rw_mode_falls_back_cleanly) ... ok
@@ -11,6 +22,10 @@ test_read_hit_cycle_compare (__main__.TestCycleComparisonVsDCache.test_read_hit_
 ok
 test_write_hit_cycle_compare (__main__.TestCycleComparisonVsDCache.test_write_hit_cycle_compare) ... Cache: Received new request: dCacheRequest(addr_val=0x24, rw_mode='write', size='word', store_value=2712847316, halt=False)
 ok
+test_global_ld_axi_response_queue_costs_one_cycle (__main__.TestQueueCycleAccounting.test_global_ld_axi_response_queue_costs_one_cycle) ... ok
+test_sh_ld_queue_transition_costs_one_cycle (__main__.TestQueueCycleAccounting.test_sh_ld_queue_transition_costs_one_cycle) ... ok
+test_thread_block_offset_is_derived_from_resident_smem_slot (__main__.TestResidentThreadBlockMapping.test_thread_block_offset_is_derived_from_resident_smem_slot) ... ok
+test_thread_block_slot_stays_reserved_until_done_bits_are_all_one (__main__.TestResidentThreadBlockMapping.test_thread_block_slot_stays_reserved_until_done_bits_are_all_one) ... ok
 test_load_config_and_apply_to_run (__main__.TestSmemConfig.test_load_config_and_apply_to_run) ... ok
 test_all_instruction_types_in_one_sequence (__main__.TestSmemInstructionCoverage.test_all_instruction_types_in_one_sequence) ... ok
 test_global_ld_dram_to_sram_then_load (__main__.TestSmemInstructionCoverage.test_global_ld_dram_to_sram_then_load) ... ok
@@ -21,6 +36,6 @@ test_single_transaction_api_uses_config (__main__.TestSmemInstructionCoverage.te
 test_single_transaction_thread_id_expands_offsets_if_needed (__main__.TestSmemInstructionCoverage.test_single_transaction_thread_id_expands_offsets_if_needed) ... ok
 
 ----------------------------------------------------------------------
-Ran 14 tests in 0.020s
+Ran 21 tests in 0.026s
 
 OK

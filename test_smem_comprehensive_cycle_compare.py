@@ -17,6 +17,7 @@ from typing import Any, Optional, Sequence, Tuple
 from main import (
     ShmemFunctionalSimulator,
     ShmemCompatibleCacheStage,
+    SmemArbiter,
     Transaction,
     TxnType,
     load_smem_config,
@@ -611,6 +612,131 @@ class TestQueueCycleAccounting(unittest.TestCase):
         sim.step()
         self.assertEqual(len(sim.completions), 1)
         self.assertEqual(sim.completions[0].cycle_completed, 3)
+
+
+class TestArbiterMulticast(unittest.TestCase):
+    def test_same_address_sh_ld_multicasts_in_one_arbiter_cycle(self):
+        sim = ShmemFunctionalSimulator(
+            num_banks=32,
+            word_bytes=4,
+            dram_latency_cycles=0,
+            arbiter_issue_width=32,
+            num_threads=4,
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
+        )
+        probe = _tb_txn(TxnType.SH_LD, shmem_addr=0x20)
+        absolute = sim._absolute_smem_addr(probe)
+        bank, slot = sim._address_crossbar(
+            absolute, sim._effective_thread_block_offset(probe)
+        )
+        sim.banks[bank][slot] = 0xA1B2C3D4
+        sim.sram_linear[absolute] = 0xA1B2C3D4
+        arbiter = SmemArbiter(sim)
+
+        txns = [
+            _tb_txn(TxnType.SH_LD, shmem_addr=0x20, thread_id=tid)
+            for tid in range(4)
+        ]
+
+        partition = arbiter.process_batch(txns)
+        while sim._has_pending_work():
+            sim.step()
+
+        self.assertEqual(partition["num_sub_batches"], 1)
+        self.assertEqual(partition["sub_batch_sizes"], [4])
+        self.assertEqual(len(sim.completions), 4)
+        self.assertEqual(
+            {comp.read_data for comp in sim.completions},
+            {0xA1B2C3D4},
+        )
+        self.assertEqual(
+            {comp.cycle_completed for comp in sim.completions},
+            {4},
+        )
+        self.assertEqual(len(sim.pending_read_crossbar_deliveries), 0)
+
+
+class TestConflictQueueCadence(unittest.TestCase):
+    def test_32_way_same_bank_reads_keep_only_three_crossbar_responses_in_flight(self):
+        sim = ShmemFunctionalSimulator(
+            num_banks=32,
+            word_bytes=4,
+            dram_latency_cycles=0,
+            arbiter_issue_width=32,
+            num_threads=32,
+            read_crossbar_pipeline_cycles=3,
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
+        )
+
+        for lane in range(32):
+            shmem_addr = lane * sim.num_banks * sim.word_bytes
+            probe = _tb_txn(TxnType.SH_LD, shmem_addr=shmem_addr, thread_id=lane)
+            absolute = sim._absolute_smem_addr(probe)
+            bank, slot = sim._address_crossbar(
+                absolute, sim._effective_thread_block_offset(probe)
+            )
+            self.assertEqual(
+                bank,
+                0,
+                "Setup sanity: every lane should map onto the same bank.",
+            )
+            sim.banks[bank][slot] = 0x1000 + lane
+            sim.sram_linear[absolute] = 0x1000 + lane
+            sim.issue(probe)
+
+        max_in_flight = 0
+        while len(sim.completions) < 32:
+            max_in_flight = max(max_in_flight, len(sim.pending_read_crossbar_deliveries))
+            sim.step()
+
+        completion_cycles = [done.cycle_completed for done in sim.completions]
+        self.assertEqual(max_in_flight, 3)
+        self.assertEqual(completion_cycles[0], 4)
+        self.assertEqual(completion_cycles[-1], 35)
+        self.assertEqual(
+            {completion_cycles[i + 1] - completion_cycles[i] for i in range(31)},
+            {1},
+            "After the 3-cycle pipeline fill, one read should retire per cycle.",
+        )
+
+    def test_32_way_same_bank_writes_complete_one_per_cycle(self):
+        sim = ShmemFunctionalSimulator(
+            num_banks=32,
+            word_bytes=4,
+            dram_latency_cycles=0,
+            arbiter_issue_width=32,
+            num_threads=32,
+            read_crossbar_pipeline_cycles=3,
+            thread_block_size_bytes=DEFAULT_TEST_TB_SIZE_BYTES,
+        )
+
+        for lane in range(32):
+            shmem_addr = lane * sim.num_banks * sim.word_bytes
+            txn = _tb_txn(
+                TxnType.SH_ST,
+                shmem_addr=shmem_addr,
+                thread_id=lane,
+                write_data=0x2000 + lane,
+            )
+            bank = sim._bank_for_transaction(txn)
+            self.assertEqual(
+                bank,
+                0,
+                "Setup sanity: every lane should map onto the same bank.",
+            )
+            sim.issue(txn)
+
+        while len(sim.completions) < 32:
+            sim.step()
+
+        completion_cycles = [done.cycle_completed for done in sim.completions]
+        self.assertEqual(completion_cycles[0], 1)
+        self.assertEqual(completion_cycles[-1], 32)
+        self.assertEqual(
+            {completion_cycles[i + 1] - completion_cycles[i] for i in range(31)},
+            {1},
+            "Write-side bank conflicts should retire strictly one per cycle.",
+        )
 
 
 class TestResidentThreadBlockMapping(unittest.TestCase):

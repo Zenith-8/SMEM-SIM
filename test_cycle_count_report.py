@@ -4,6 +4,9 @@ Cycle-count comparison test between:
 - simulator/mem/dcache.py
 - main.py (SHMEM functional model)
 
+All DCache-vs-SMEM comparisons in this report force a 0-cycle DRAM latency on
+both sides so the delta reflects on-chip pipeline behavior only.
+
 This script prints a formatted per-case report with individual cycle counts.
 
 Run:
@@ -23,6 +26,7 @@ from test_dcache_and_smem import _load_dcache_symbols
 
 DCACHE = _load_dcache_symbols()
 DEFAULT_TEST_TB_SIZE_BYTES = 0x100
+COMPARISON_DRAM_LATENCY_CYCLES = 0
 
 
 def _tb_slots(*tbids: Optional[int]) -> Tuple[Optional[int], ...]:
@@ -82,6 +86,8 @@ class SmemRunResult:
     txn_type: str
     read_data: Optional[int]
     cycle_count: int
+    thread_block_offset_effective: int
+    smem_block_id: Optional[int]
 
 
 @dataclass
@@ -170,8 +176,11 @@ def _run_smem_to_completion(
     kwargs["thread_block_size_bytes"] = int(
         kwargs.get("thread_block_size_bytes") or DEFAULT_TEST_TB_SIZE_BYTES
     )
-    if dram_latency_cycles is not None:
-        kwargs["dram_latency_cycles"] = int(dram_latency_cycles)
+    kwargs["dram_latency_cycles"] = int(
+        COMPARISON_DRAM_LATENCY_CYCLES
+        if dram_latency_cycles is None
+        else dram_latency_cycles
+    )
     sim = ShmemFunctionalSimulator(**kwargs)
     if preload is not None:
         preload(sim)
@@ -194,6 +203,8 @@ def _run_smem_to_completion(
         txn_type=str(completion.txn_type),
         read_data=completion.read_data,
         cycle_count=sim.get_cycle_count(),
+        thread_block_offset_effective=int(completion.thread_block_offset_effective),
+        smem_block_id=completion.smem_block_id,
     )
 
 
@@ -201,7 +212,7 @@ def _run_dcache_to_completion(
     req: Any,
     *,
     preload_hit_value: Optional[int] = None,
-    mem_latency_cycles: int = 1,
+    mem_latency_cycles: int = COMPARISON_DRAM_LATENCY_CYCLES,
     memory_words: Optional[Dict[int, int]] = None,
     max_cycles: int = 5000,
 ) -> DCacheRunResult:
@@ -302,7 +313,7 @@ def _build_cases() -> List[CycleCase]:
     global_st_dram_addr = 0x3100
     global_st_data = 0x55AA66CC
 
-    mem_latency = 4
+    mem_latency = COMPARISON_DRAM_LATENCY_CYCLES
 
     return [
         CycleCase(
@@ -439,6 +450,8 @@ def generate_cycle_report_rows() -> List[Dict[str, Any]]:
                 "smem_cycles": int(smem_result.cycle_count),
                 "delta_smem_minus_dcache": int(smem_result.cycle_count)
                 - int(dcache_result.completion_cycle),
+                "smem_tbo": int(smem_result.thread_block_offset_effective),
+                "smem_block_id": smem_result.smem_block_id,
                 "dcache_result": (
                     f"{dcache_result.completion_type} "
                     f"(data={_format_optional_hex(dcache_result.data)})"
@@ -459,22 +472,28 @@ def print_cycle_report(rows: List[Dict[str, Any]]) -> None:
     print(title)
     print("=" * len(title))
     print(
-        f"{'Case':<22} {'DCache':>8} {'SHMEM':>8} {'Delta':>8} "
+        f"Comparison DRAM latency: {COMPARISON_DRAM_LATENCY_CYCLES} cycles on both DCache and SMEM."
+    )
+    print()
+    print(
+        f"{'Case':<22} {'DCache':>8} {'SHMEM':>8} {'Delta':>8} {'TBO':>8} {'Blk':>5} "
         f"{'DCache Timeline':<22} {'DCache Result':<32} {'SHMEM Result':<30}"
     )
-    print("-" * 142)
+    print("-" * 158)
     for row in rows:
         print(
             f"{row['case']:<22} "
             f"{row['dcache_cycles']:>8} "
             f"{row['smem_cycles']:>8} "
             f"{row['delta_smem_minus_dcache']:>8} "
+            f"0x{int(row['smem_tbo']):04X} "
+            f"{str(row['smem_block_id'] if row['smem_block_id'] is not None else '-'):>5} "
             f"{row['dcache_timeline']:<22} "
             f"{row['dcache_result']:<32} "
             f"{row['smem_result']:<30}"
         )
         print(f"  note: {row['note']}")
-    print("-" * 142)
+    print("-" * 158)
     avg_delta = sum(row["delta_smem_minus_dcache"] for row in rows) / max(len(rows), 1)
     print(f"Average delta (SHMEM - DCache): {avg_delta:.2f} cycles")
 
